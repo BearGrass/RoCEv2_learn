@@ -184,7 +184,7 @@ int modify_qp_to_rtr(struct rdma_resources *res,
 
     memset(&attr, 0, sizeof(attr));
     attr.qp_state = IBV_QPS_RTR;
-    attr.path_mtu = IBV_MTU_1024;  /* 路径MTU */
+    attr.path_mtu = res->port_attr.active_mtu;  /* 使用端口实际MTU，而非硬编码 */
     attr.dest_qp_num = remote_con_data->qp_num;  /* 远端QP号 */
     attr.rq_psn = 0;  /* Receive队列的起始PSN (Packet Sequence Number) */
 
@@ -194,16 +194,14 @@ int modify_qp_to_rtr(struct rdma_resources *res,
     attr.ah_attr.src_path_bits = 0;
     attr.ah_attr.port_num = res->ib_port;
 
-    /* 对于RoCE，需要设置GID */
-    if (remote_con_data->gid[0] != 0 || remote_con_data->gid[1] != 0) {
-        attr.ah_attr.is_global = 1;
-        memcpy(&remote_gid, remote_con_data->gid, 16);
-        attr.ah_attr.grh.dgid = remote_gid;
-        attr.ah_attr.grh.flow_label = 0;
-        attr.ah_attr.grh.hop_limit = 1;  /* 对于RoCEv2通常设为1 */
-        attr.ah_attr.grh.sgid_index = res->gid_idx;
-        attr.ah_attr.grh.traffic_class = 0;
-    }
+    /* 对于RoCEv2，强制设置GID（即使GID看起来为0也设置） */
+    attr.ah_attr.is_global = 1;
+    memcpy(&remote_gid, remote_con_data->gid, 16);
+    attr.ah_attr.grh.dgid = remote_gid;
+    attr.ah_attr.grh.flow_label = 0;
+    attr.ah_attr.grh.hop_limit = 1;  /* 对于RoCEv2通常设为1 */
+    attr.ah_attr.grh.sgid_index = res->gid_idx;
+    attr.ah_attr.grh.traffic_class = 0;
 
     /* RC QP的可靠性参数 */
     attr.max_dest_rd_atomic = 1;  /* 目标端最大未完成RDMA读/原子操作 */
@@ -213,7 +211,16 @@ int modify_qp_to_rtr(struct rdma_resources *res,
             IBV_QP_RQ_PSN | IBV_QP_MAX_DEST_RD_ATOMIC | IBV_QP_MIN_RNR_TIMER;
 
     if (ibv_modify_qp(res->qp, &attr, flags)) {
-        fprintf(stderr, "错误: 修改QP到RTR状态失败\n");
+        fprintf(stderr, "错误: 修改QP到RTR状态失败: %s (errno=%d)\n",
+                strerror(errno), errno);
+        fprintf(stderr, "调试提示:\n");
+        fprintf(stderr, "  - 远端QP号: 0x%06x\n", remote_con_data->qp_num);
+        fprintf(stderr, "  - 远端LID: 0x%04x\n", remote_con_data->lid);
+        fprintf(stderr, "  - GID索引: %d\n", res->gid_idx);
+        fprintf(stderr, "  - 远端GID: ");
+        print_gid(&remote_gid);
+        fprintf(stderr, "\n");
+        fprintf(stderr, "请检查: 1) GID配置 2) 端口状态 3) 连接信息交换是否正确\n");
         return -1;
     }
     printf("QP状态: INIT -> RTR (Ready to Receive)\n");

@@ -27,4 +27,10 @@ vgcore.*
 
 # 其他
 *.log
+*.txt
 .cache/
+
+# 诊断输出
+diagnostic.txt
+server.log
+client.log

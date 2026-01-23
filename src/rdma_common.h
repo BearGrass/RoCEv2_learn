@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <errno.h>
+#include <sys/time.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
