@@ -232,6 +232,22 @@ RESET → INIT → RTR → RTS
    - 实现多客户端连接
    - 测量延迟和吞吐量
 
+## 故障排除
+
+遇到问题？使用内置的诊断工具：
+
+```bash
+# 运行诊断脚本，自动检查配置
+./diagnose.sh
+
+# 查看GID表
+./show_gids.sh
+```
+
+**常见问题快速修复：**
+- 📖 查看 [QUICKFIX.md](QUICKFIX.md) - 快速解决90%的问题
+- 📚 查看 [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - 详细故障排除指南
+
 ## 常见问题
 
 ### Q1: 编译时找不到 libibverbs
@@ -241,13 +257,13 @@ RESET → INIT → RTR → RTS
 **A**: 确保已加载驱动并配置了RDMA设备，运行 `ibv_devices` 检查
 
 ### Q3: GID索引应该使用多少？
-**A**: 对于RoCEv2，通常使用GID索引1或更高。运行 `show_gids` 查看可用的GID
+**A**: 对于RoCEv2，通常使用GID索引1或更高。运行 `./show_gids.sh` 查看可用的GID
 
 ### Q4: 程序卡在"等待客户端连接"
 **A**: 检查防火墙设置，确保TCP端口（默认18515）未被阻止
 
 ### Q5: 修改QP到RTR状态失败
-**A**: 检查双方是否正确交换了连接信息，特别是GID是否正确
+**A**: 这是最常见的问题！运行 `./diagnose.sh` 进行诊断，通常是GID索引配置错误。详见 [QUICKFIX.md](QUICKFIX.md)
 
 ## 参考资料
 

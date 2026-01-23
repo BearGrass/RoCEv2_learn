@@ -23,8 +23,8 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# 获取设备名
-DEVICE=$(ibv_devices | grep -v "device" | awk '{print $1}' | head -n 1)
+# 获取设备名（跳过表头，取第一个设备）
+DEVICE=$(ibv_devices | tail -n +3 | awk '{print $1}' | head -n 1)
 if [ -z "$DEVICE" ]; then
     echo "错误: 无法获取设备名"
     exit 1
@@ -36,7 +36,12 @@ echo "找到设备: $DEVICE"
 echo ""
 echo "2. 设备详细信息:"
 echo "----------------------------------------"
-ibv_devinfo -d "$DEVICE" -v | head -n 30
+if ibv_devinfo -d "$DEVICE" &> /dev/null; then
+    ibv_devinfo -d "$DEVICE"
+else
+    echo "警告: 无法获取设备详细信息"
+    ibv_devinfo
+fi
 
 # GID表
 echo ""
@@ -46,10 +51,29 @@ if command -v show_gids &> /dev/null; then
     show_gids
 else
     echo "show_gids命令不可用，手动查询GID:"
-    for i in {0..5}; do
-        GID=$(cat /sys/class/infiniband/$DEVICE/ports/1/gids/$i 2>/dev/null)
-        if [ $? -eq 0 ] && [ "$GID" != "0000:0000:0000:0000:0000:0000:0000:0000" ]; then
-            echo "  GID[$i]: $GID"
+    echo ""
+    printf "%-8s %-10s %s\n" "INDEX" "TYPE" "GID"
+    printf "%-8s %-10s %s\n" "-----" "----" "---"
+    for i in {0..15}; do
+        GID_FILE="/sys/class/infiniband/$DEVICE/ports/1/gids/$i"
+        GID_TYPE_FILE="/sys/class/infiniband/$DEVICE/ports/1/gid_attrs/types/$i"
+
+        if [ -f "$GID_FILE" ]; then
+            GID=$(cat "$GID_FILE" 2>/dev/null)
+            GID_TYPE=$(cat "$GID_TYPE_FILE" 2>/dev/null)
+
+            if [ -n "$GID" ] && [ "$GID" != "0000:0000:0000:0000:0000:0000:0000:0000" ]; then
+                # 提取IPv4地址（如果是RoCEv2 GID）
+                if [[ "$GID" =~ ffff:([0-9a-f]{2})([0-9a-f]{2}):([0-9a-f]{2})([0-9a-f]{2})$ ]]; then
+                    IP1=$((16#${BASH_REMATCH[1]}))
+                    IP2=$((16#${BASH_REMATCH[2]}))
+                    IP3=$((16#${BASH_REMATCH[3]}))
+                    IP4=$((16#${BASH_REMATCH[4]}))
+                    printf "%-8s %-10s %s (IPv4: %d.%d.%d.%d)\n" "$i" "$GID_TYPE" "$GID" "$IP1" "$IP2" "$IP3" "$IP4"
+                else
+                    printf "%-8s %-10s %s\n" "$i" "$GID_TYPE" "$GID"
+                fi
+            fi
         fi
     done
 fi
@@ -71,8 +95,18 @@ fi
 echo ""
 echo "5. 关联的网络接口:"
 echo "----------------------------------------"
-if [ -e "/sys/class/infiniband/$DEVICE/parent" ]; then
+
+# 尝试通过rdma link获取网卡（适用于RXE设备）
+if command -v rdma &> /dev/null; then
+    NETDEV=$(rdma link show $DEVICE 2>/dev/null | grep -o "netdev [^ ]*" | awk '{print $2}')
+fi
+
+# 如果rdma命令失败，尝试从sysfs获取
+if [ -z "$NETDEV" ] && [ -e "/sys/class/infiniband/$DEVICE/parent" ]; then
     NETDEV=$(basename $(readlink /sys/class/infiniband/$DEVICE/parent) 2>/dev/null)
+fi
+
+if [ -n "$NETDEV" ]; then
     echo "  网卡: $NETDEV"
 
     # 检查网卡IP
@@ -84,8 +118,10 @@ if [ -e "/sys/class/infiniband/$DEVICE/parent" ]; then
     fi
 
     # 检查网卡状态
-    NETDEV_STATE=$(ip link show $NETDEV 2>/dev/null | grep "state" | awk '{print $9}')
+    NETDEV_STATE=$(ip link show $NETDEV 2>/dev/null | head -1 | grep -o "state [^ ]*" | awk '{print $2}')
     echo "  网卡状态: $NETDEV_STATE"
+else
+    echo "  警告: 无法找到关联的网卡"
 fi
 
 # 建议
