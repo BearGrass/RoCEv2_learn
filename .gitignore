@@ -1,0 +1,30 @@
+# 编译输出目录
+build/
+*.o
+*.a
+*.so
+*.so.*
+
+# 可执行文件
+rdma_server
+rdma_client
+
+# 编辑器和IDE文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 调试文件
+*.dSYM/
+*.su
+*.idb
+*.pdb
+core
+vgcore.*
+
+# 其他
+*.log
+.cache/
