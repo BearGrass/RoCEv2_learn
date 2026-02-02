@@ -62,6 +62,9 @@ int main(int argc, char *argv[]) {
         goto cleanup;
     }
 
+    /* 打印QP状态：INIT阶段 */
+    print_qp_state(&res, "INIT状态");
+
     /* ===== 第二阶段: 准备连接信息 ===== */
     printf("\n========== 准备本地连接信息 ==========\n");
 
@@ -151,6 +154,9 @@ int main(int argc, char *argv[]) {
         goto cleanup;
     }
 
+    /* 打印QP状态：RTR阶段 */
+    print_qp_state(&res, "RTR状态");
+
     /* 修改QP状态: RTR -> RTS */
     if (modify_qp_to_rts(&res)) {
         fprintf(stderr, "修改QP到RTS失败\n");
@@ -159,6 +165,9 @@ int main(int argc, char *argv[]) {
     }
 
     printf("\n========== RDMA连接已建立 ==========\n");
+
+    /* 打印QP状态：RTS阶段 */
+    print_qp_state(&res, "RTS状态（RDMA连接已建立）");
 
     /* ===== 第五阶段: RDMA数据传输 ===== */
     printf("\n========== 开始RDMA数据传输 ==========\n");

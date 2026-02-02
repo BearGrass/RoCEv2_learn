@@ -380,6 +380,195 @@ int poll_completion(struct rdma_resources *res, int expected_completions) {
     return 0;
 }
 
+/**
+ * 将QP状态枚举值转换为字符串
+ */
+static const char* qp_state_to_str(enum ibv_qp_state state) {
+    switch (state) {
+        case IBV_QPS_RESET:
+            return "RESET";
+        case IBV_QPS_INIT:
+            return "INIT";
+        case IBV_QPS_RTR:
+            return "RTR (Ready to Receive)";
+        case IBV_QPS_RTS:
+            return "RTS (Ready to Send)";
+        case IBV_QPS_SQD:
+            return "SQD (Send Queue Draining)";
+        case IBV_QPS_SQE:
+            return "SQE (Send Queue Error)";
+        case IBV_QPS_ERR:
+            return "ERR";
+        default:
+            return "UNKNOWN";
+    }
+}
+
+/**
+ * 将QPT类型转换为字符串
+ */
+static const char* qp_type_to_str(enum ibv_qp_type type) {
+    switch (type) {
+        case IBV_QPT_RC:
+            return "RC (Reliable Connection)";
+        case IBV_QPT_UC:
+            return "UC (Unreliable Connection)";
+        case IBV_QPT_UD:
+            return "UD (Unreliable Datagram)";
+        case IBV_QPT_RAW_PACKET:
+            return "RAW_PACKET";
+        default:
+            return "UNKNOWN";
+    }
+}
+
+/**
+ * 打印QP的运行时状态
+ */
+int print_qp_state(struct rdma_resources *res, const char *title) {
+    struct ibv_qp_attr attr;
+    struct ibv_qp_init_attr init_attr;
+    int attr_mask;
+
+    if (!res || !res->qp) {
+        fprintf(stderr, "错误: 无效的QP资源\n");
+        return -1;
+    }
+
+    /* 查询QP属性 */
+    attr_mask = IBV_QP_STATE | IBV_QP_CUR_STATE | IBV_QP_EN_SQD_ASYNC_NOTIFY |
+                IBV_QP_ACCESS_FLAGS | IBV_QP_PKEY_INDEX | IBV_QP_PORT |
+                IBV_QP_QKEY | IBV_QP_AV | IBV_QP_PATH_MTU | IBV_QP_TIMEOUT |
+                IBV_QP_RETRY_CNT | IBV_QP_RNR_RETRY | IBV_QP_RQ_PSN |
+                IBV_QP_MAX_QP_RD_ATOMIC | IBV_QP_ALT_PATH | IBV_QP_MIN_RNR_TIMER |
+                IBV_QP_SQ_PSN | IBV_QP_MAX_DEST_RD_ATOMIC | IBV_QP_PATH_MIG_STATE;
+
+    memset(&attr, 0, sizeof(attr));
+    memset(&init_attr, 0, sizeof(init_attr));
+
+    if (ibv_query_qp(res->qp, &attr, attr_mask, &init_attr)) {
+        fprintf(stderr, "错误: 查询QP属性失败\n");
+        return -1;
+    }
+
+    printf("\n");
+    printf("╔════════════════════════════════════════════════════════════╗\n");
+    if (title) {
+        printf("║  QP运行时状态 - %s\n", title);
+        printf("║────────────────────────────────────────────────────────────║\n");
+    } else {
+        printf("║  QP运行时状态信息\n");
+        printf("║────────────────────────────────────────────────────────────║\n");
+    }
+    
+    /* 基本信息 */
+    printf("║\n");
+    printf("║ 【基本信息】\n");
+    printf("║  QP号: 0x%06x\n", res->qp->qp_num);
+    printf("║  QP类型: %s\n", qp_type_to_str(init_attr.qp_type));
+
+    /* QP状态 */
+    printf("║\n");
+    printf("║ 【QP状态】\n");
+    printf("║  当前状态: %s\n", qp_state_to_str(attr.qp_state));
+
+    /* 队列容量 */
+    printf("║\n");
+    printf("║ 【队列容量】\n");
+    printf("║  Send Queue:\n");
+    printf("║    - 最大WR数: %u\n", init_attr.cap.max_send_wr);
+    printf("║    - 最大SGE数: %u\n", init_attr.cap.max_send_sge);
+    printf("║  Receive Queue:\n");
+    printf("║    - 最大WR数: %u\n", init_attr.cap.max_recv_wr);
+    printf("║    - 最大SGE数: %u\n", init_attr.cap.max_recv_sge);
+    printf("║  内联数据大小: %u\n", init_attr.cap.max_inline_data);
+
+    /* 端口和PKEY */
+    printf("║\n");
+    printf("║ 【端口配置】\n");
+    printf("║  端口号: %u\n", attr.port_num);
+    printf("║  PKEY索引: %u\n", attr.pkey_index);
+
+    /* PSN (Packet Sequence Number) */
+    printf("║\n");
+    printf("║ 【Packet Sequence Numbers】\n");
+    printf("║  SQ PSN: %u\n", attr.sq_psn);
+    printf("║  RQ PSN: %u\n", attr.rq_psn);
+
+    /* 路径MTU */
+    printf("║\n");
+    printf("║ 【路径MTU】\n");
+    const char *mtu_str;
+    switch (attr.path_mtu) {
+        case IBV_MTU_256:  mtu_str = "256 bytes"; break;
+        case IBV_MTU_512:  mtu_str = "512 bytes"; break;
+        case IBV_MTU_1024: mtu_str = "1024 bytes"; break;
+        case IBV_MTU_2048: mtu_str = "2048 bytes"; break;
+        case IBV_MTU_4096: mtu_str = "4096 bytes"; break;
+        default: mtu_str = "UNKNOWN"; break;
+    }
+    printf("║  MTU: %s\n", mtu_str);
+
+    /* 可靠性参数 */
+    printf("║\n");
+    printf("║ 【可靠性参数】\n");
+    printf("║  超时: %u (大约 %.1f ms)\n", attr.timeout,
+           (1UL << attr.timeout) * 4.096 / 1000.0);  /* 转换为毫秒 */
+    printf("║  重试次数: %u\n", attr.retry_cnt);
+    printf("║  RNR重试次数: %u\n", attr.rnr_retry);
+    printf("║  RNR最小超时: %u\n", attr.min_rnr_timer);
+
+    /* RDMA操作限制 */
+    printf("║\n");
+    printf("║ 【RDMA操作限制】\n");
+    printf("║  最大本地未完成RDMA读/原子操作: %u\n", attr.max_rd_atomic);
+    printf("║  最大远端未完成RDMA读/原子操作: %u\n", attr.max_dest_rd_atomic);
+
+    /* 访问权限 */
+    printf("║\n");
+    printf("║ 【访问权限】\n");
+    printf("║  Local Write: %s\n", 
+           (attr.qp_access_flags & IBV_ACCESS_LOCAL_WRITE) ? "是" : "否");
+    printf("║  Remote Write: %s\n", 
+           (attr.qp_access_flags & IBV_ACCESS_REMOTE_WRITE) ? "是" : "否");
+    printf("║  Remote Read: %s\n", 
+           (attr.qp_access_flags & IBV_ACCESS_REMOTE_READ) ? "是" : "否");
+    printf("║  Remote Atomic: %s\n", 
+           (attr.qp_access_flags & IBV_ACCESS_REMOTE_ATOMIC) ? "是" : "否");
+
+    /* 寻址信息 (AH) */
+    if (attr.qp_state != IBV_QPS_RESET && attr.qp_state != IBV_QPS_INIT) {
+        printf("║\n");
+        printf("║ 【寻址信息 (Address Handle)】\n");
+        printf("║  远端LID: 0x%04x\n", attr.ah_attr.dlid);
+        printf("║  Service Level: %u\n", attr.ah_attr.sl);
+        printf("║  Port Num: %u\n", attr.ah_attr.port_num);
+        printf("║  Static Rate: %u\n", attr.ah_attr.static_rate);
+        printf("║  Source Path Bits: %u\n", attr.ah_attr.src_path_bits);
+        
+        if (attr.ah_attr.is_global) {
+            printf("║  Global Routing:\n");
+            printf("║    - Flow Label: %u\n", attr.ah_attr.grh.flow_label);
+            printf("║    - Hop Limit: %u\n", attr.ah_attr.grh.hop_limit);
+            printf("║    - Traffic Class: %u\n", attr.ah_attr.grh.traffic_class);
+            printf("║    - SGID Index: %u\n", attr.ah_attr.grh.sgid_index);
+        }
+    }
+
+    /* 远端QP信息 */
+    if (attr.qp_state != IBV_QPS_RESET && attr.qp_state != IBV_QPS_INIT) {
+        printf("║\n");
+        printf("║ 【远端QP信息】\n");
+        printf("║  远端QP号: 0x%06x\n", attr.dest_qp_num);
+    }
+
+    printf("║\n");
+    printf("╚════════════════════════════════════════════════════════════╝\n");
+    printf("\n");
+
+    return 0;
+}
+
 void cleanup_rdma_resources(struct rdma_resources *res) {
     printf("\n========== 清理RDMA资源 ==========\n");
 

@@ -149,4 +149,13 @@ int poll_completion(struct rdma_resources *res, int expected_completions);
  */
 void cleanup_rdma_resources(struct rdma_resources *res);
 
+/**
+ * 打印QP的运行时状态
+ * 查询并打印QP的当前属性和状态信息
+ * @param res: RDMA资源结构体指针
+ * @param title: 状态标题（可选，用于标识打印的上下文）
+ * @return: 成功返回0，失败返回-1
+ */
+int print_qp_state(struct rdma_resources *res, const char *title);
+
 #endif /* RDMA_COMMON_H */
