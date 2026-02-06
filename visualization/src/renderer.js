@@ -14,23 +14,23 @@ class Renderer {
         this.ctx = null;
         this.initialized = false;
         
-        // 配置
+        // 配置 - Geek / Cyberpunk 风格
         this.colors = {
-            primary: '#667eea',
-            secondary: '#764ba2',
-            success: '#10b981',
-            warning: '#f59e0b',
-            danger: '#ef4444',
-            neutral: '#9ca3af',
-            text: '#1f2937',
-            background: '#ffffff',
+            primary: '#00ff88',
+            secondary: '#00ccff',
+            success: '#00ff88',
+            warning: '#ffaa00',
+            danger: '#ff0055',
+            neutral: '#00ff8844',
+            text: '#00ff88',
+            background: '#0f0f1e',
         };
 
         this.fonts = {
-            title: 'bold 18px system-ui',
-            subtitle: 'bold 14px system-ui',
-            normal: '13px system-ui',
-            small: '11px system-ui',
+            title: 'bold 18px "Courier New", monospace',
+            subtitle: 'bold 14px "Courier New", monospace',
+            normal: '13px "Courier New", monospace',
+            small: '11px "Courier New", monospace',
         };
         
         // 立即初始化一次
@@ -243,10 +243,25 @@ class Renderer {
     }
 
     drawTitle(text) {
-        this.ctx.fillStyle = this.colors.text;
+        // 添加发光效果
+        this.ctx.fillStyle = 'rgba(0, 255, 136, 0.2)';
         this.ctx.font = this.fonts.title;
         this.ctx.textAlign = 'left';
+        
+        // 绘制发光背景
         this.ctx.fillText(text, 30, 50);
+        
+        // 绘制主文本
+        this.ctx.fillStyle = this.colors.text;
+        this.ctx.fillText(text, 30, 50);
+        
+        // 添加下划线
+        this.ctx.strokeStyle = this.colors.primary;
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.moveTo(30, 55);
+        this.ctx.lineTo(300, 55);
+        this.ctx.stroke();
     }
 
     drawCurrentStepInfo(step, x, y) {
