@@ -10,6 +10,7 @@
 - [学习路径](guides/LEARNING_PATH.md) - 按阶段学习
 
 ### 📖 指南和教程
+- [开发工作流](guides/DEVELOPMENT_WORKFLOW.md) - 如何创建和实践新需求 ⭐ **新手必读**
 - [AI编程指南](guides/AI_PROGRAMMING_GUIDE.md) - AI协作指南
 - [最佳实践](guides/BEST_PRACTICES.md) - 开发工作流和规范
 

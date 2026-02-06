@@ -38,6 +38,10 @@
    - 跟踪源代码执行
    - 修改代码添加日志
 
+5. **第五步** (30分钟) ⭐ **关键**
+   - 学习 [开发工作流](DEVELOPMENT_WORKFLOW.md)
+   - 了解如何创建和实践新需求
+
 ## 🔬 高级开发者 (10+小时)
 
 **目标**: 精通RDMA编程，能独立扩展功能
@@ -51,14 +55,14 @@
    - 理解多QP设计
 
 3. **第三步** (3小时)
-   - 添加新的RDMA操作 (WRITE, READ等)
-   - 性能优化和调测
+   - 详细学习 [完整开发工作流](DEVELOPMENT_WORKFLOW.md)
+   - 了解如何规范地创建新需求
 
 4. **第四步** (2+小时)
    - 自己实现新功能
    - 参与项目贡献
 
-## 🎯 按目标选择
+## 🎯 按目标快速选择
 
 ### "我想快速开始"
 → [QUICK_START.md](../QUICK_START.md) (5分钟)
@@ -71,7 +75,14 @@
 → 初学者路线 + [C编码规范](../../.ai/_conventions.md)
 
 ### "我想贡献代码"
-→ 中级路线 + [最佳实践](BEST_PRACTICES.md)
+→ 中级路线 + [最佳实践](BEST_PRACTICES.md) + [开发工作流](DEVELOPMENT_WORKFLOW.md) ⭐
+
+### "我想创建新需求"
+→ [完整开发工作流](DEVELOPMENT_WORKFLOW.md) (必读)
+→ [快速开发指南](QUICK_DEVELOPMENT_GUIDE.md) (参考)
+
+### "我想精通RDMA"
+→ 高级路线 + [多QP详解](../technical/MULTI_QP_README.md)
 
 ### "我想精通RDMA"
 → 高级路线 + [多QP详解](../technical/MULTI_QP_README.md)
