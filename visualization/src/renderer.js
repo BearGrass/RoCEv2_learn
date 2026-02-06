@@ -166,9 +166,6 @@ class Renderer {
             this.drawStepNode(nodeX, nodeY, 50, step, i === currentIndex, i < currentIndex);
         });
 
-        // 绘制当前步骤信息
-        }
-
         // 步骤信息已移到侧边栏，不在Canvas上显示
     }
 
