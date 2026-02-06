@@ -512,7 +512,42 @@
                 if (!scenario) return;
                 const step = scenario.getCurrentStep();
                 if (step) {
-                    const html = `<strong>${step.name}</strong><p style="margin-top: 8px; color: #666;">${step.description}</p>`;
+                    let html = `<strong>${step.name}</strong><p style="margin-top: 8px; color: #666;">${step.description}</p>`;
+                    
+                    // 添加交互信息
+                    if (step.interaction) {
+                        html += '<div style="margin-top: 12px; padding: 8px; background: rgba(0, 212, 255, 0.1); border-left: 3px solid #00d4ff;">';
+                        html += '<strong style="color: #00d4ff;">交互信息:</strong><br/>';
+                        
+                        if (step.interaction.role) {
+                            const roleText = step.interaction.role === 'client' ? '客户端' : '服务器';
+                            html += `<span style="color: #0088ff;">角色:</span> ${roleText}<br/>`;
+                        }
+                        
+                        if (step.interaction.type) {
+                            const typeMap = {
+                                'control': '控制消息',
+                                'data': '数据消息',
+                                'ack': '确认消息',
+                                'memory': '内存操作',
+                                'driver': '驱动操作'
+                            };
+                            const typeText = typeMap[step.interaction.type] || step.interaction.type;
+                            html += `<span style="color: #00ff88;">类型:</span> ${typeText}<br/>`;
+                        }
+                        
+                        if (step.interaction.direction) {
+                            const dirText = step.interaction.direction === 'write' ? '写入' : '读取';
+                            html += `<span style="color: #ffaa00;">方向:</span> ${dirText}<br/>`;
+                        }
+                        
+                        if (step.interaction.label) {
+                            html += `<span style="color: #ff6644;">标签:</span> ${step.interaction.label}`;
+                        }
+                        
+                        html += '</div>';
+                    }
+                    
                     this.stepInfo.innerHTML = html;
                 }
             }
