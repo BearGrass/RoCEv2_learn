@@ -136,7 +136,7 @@ const DataPlaneSteps = [
         'dp-1-prep',
         '准备Send WR',
         '准备发送工作请求(Work Request)，包括数据缓冲区和目标地址信息',
-        new CodeMapping('src/rdma_common_net.c', 60, 90, 'struct ibv_send_wr sr; sr.wr.rdma.remote_addr = ...');'),
+        new CodeMapping('src/rdma_common_net.c', 60, 90, 'struct ibv_send_wr sr; sr.wr.rdma.remote_addr = ...'),
         800
     ),
     new RDMAStep(
