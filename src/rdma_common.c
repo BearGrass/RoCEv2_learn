@@ -11,7 +11,8 @@ void print_gid(union ibv_gid *gid) {
 int init_rdma_resources(struct rdma_resources *res,
                         const char *dev_name,
                         uint8_t ib_port,
-                        int gid_idx) {
+                        int gid_idx,
+                        uint32_t num_qp) {
     int num_devices;
     int i;
     union ibv_gid gid;
@@ -20,6 +21,12 @@ int init_rdma_resources(struct rdma_resources *res,
     res->ib_port = ib_port;
     res->gid_idx = gid_idx;
     res->buf_size = DEFAULT_MSG_SIZE;
+    res->num_qp = num_qp > 0 ? num_qp : DEFAULT_NUM_QP;
+
+    if (res->num_qp > MAX_QP) {
+        fprintf(stderr, "错误: QP数量(%u)超过最大限制(%u)\n", res->num_qp, MAX_QP);
+        return -1;
+    }
 
     /* 1. 获取RDMA设备列表 */
     printf("\n========== 步骤1: 获取RDMA设备列表 ==========\n");
@@ -110,14 +117,24 @@ int init_rdma_resources(struct rdma_resources *res,
     printf("  - MR lkey: 0x%x\n", res->mr->lkey);
     printf("  - MR rkey: 0x%x\n", res->mr->rkey);
 
-    /* 9. 创建Completion Queue (CQ) */
-    printf("\n========== 步骤7: 创建Completion Queue ==========\n");
+    /* 9. 创建Completion Queue (CQ) - 多QP共享一个CQ */
+    printf("\n========== 步骤7: 创建Completion Queue (多QP共享) ==========\n");
     res->cq = ibv_create_cq(res->context, CQ_SIZE, NULL, NULL, 0);
     if (!res->cq) {
         fprintf(stderr, "错误: 创建CQ失败\n");
         return -1;
     }
     printf("成功创建CQ (大小: %d)\n", CQ_SIZE);
+
+    /* 10. 分配QP列表 */
+    printf("\n========== 步骤8: 分配QP列表 ==========\n");
+    res->qp_list = malloc(sizeof(struct ibv_qp *) * res->num_qp);
+    if (!res->qp_list) {
+        fprintf(stderr, "错误: 分配QP列表失败\n");
+        return -1;
+    }
+    memset(res->qp_list, 0, sizeof(struct ibv_qp *) * res->num_qp);
+    printf("分配QP列表: %u个QP\n", res->num_qp);
 
     return 0;
 }
@@ -128,24 +145,55 @@ int create_qp(struct rdma_resources *res) {
     printf("\n========== 步骤8: 创建Queue Pair ==========\n");
 
     memset(&qp_init_attr, 0, sizeof(qp_init_attr));
-    qp_init_attr.qp_type = IBV_QPT_RC;  /* RC = Reliable Connection */
-    qp_init_attr.sq_sig_all = 1;        /* 所有Send操作都产生CQE */
-    qp_init_attr.send_cq = res->cq;     /* Send Completion Queue */
-    qp_init_attr.recv_cq = res->cq;     /* Recv Completion Queue */
-    qp_init_attr.cap.max_send_wr = MAX_WR;    /* 最大Send WR数 */
-    qp_init_attr.cap.max_recv_wr = MAX_WR;    /* 最大Recv WR数 */
-    qp_init_attr.cap.max_send_sge = MAX_SGE;  /* 每个Send WR的SGE数 */
-    qp_init_attr.cap.max_recv_sge = MAX_SGE;  /* 每个Recv WR的SGE数 */
+    qp_init_attr.qp_type = IBV_QPT_RC;
+    qp_init_attr.sq_sig_all = 1;
+    qp_init_attr.send_cq = res->cq;
+    qp_init_attr.recv_cq = res->cq;
+    qp_init_attr.cap.max_send_wr = MAX_WR;
+    qp_init_attr.cap.max_recv_wr = MAX_WR;
+    qp_init_attr.cap.max_send_sge = MAX_SGE;
+    qp_init_attr.cap.max_recv_sge = MAX_SGE;
 
-    res->qp = ibv_create_qp(res->pd, &qp_init_attr);
-    if (!res->qp) {
+    /* 对于兼容性，如果仅分配了1个QP，同时维护qp_list[0] */
+    res->qp_list[0] = ibv_create_qp(res->pd, &qp_init_attr);
+    if (!res->qp_list[0]) {
         fprintf(stderr, "错误: 创建QP失败\n");
         return -1;
     }
     printf("成功创建QP\n");
-    printf("  - QP号: 0x%06x\n", res->qp->qp_num);
+    printf("  - QP号: 0x%06x\n", res->qp_list[0]->qp_num);
     printf("  - QP类型: RC (Reliable Connection)\n");
 
+    return 0;
+}
+
+int create_qp_list(struct rdma_resources *res) {
+    struct ibv_qp_init_attr qp_init_attr;
+    uint32_t i;
+
+    printf("\n========== 步骤9: 创建多个Queue Pair ==========\n");
+    printf("创建 %u 个QP...\n", res->num_qp);
+
+    for (i = 0; i < res->num_qp; i++) {
+        memset(&qp_init_attr, 0, sizeof(qp_init_attr));
+        qp_init_attr.qp_type = IBV_QPT_RC;  /* RC = Reliable Connection */
+        qp_init_attr.sq_sig_all = 1;        /* 所有Send操作都产生CQE */
+        qp_init_attr.send_cq = res->cq;     /* Send Completion Queue (共享) */
+        qp_init_attr.recv_cq = res->cq;     /* Recv Completion Queue (共享) */
+        qp_init_attr.cap.max_send_wr = MAX_WR;    /* 最大Send WR数 */
+        qp_init_attr.cap.max_recv_wr = MAX_WR;    /* 最大Recv WR数 */
+        qp_init_attr.cap.max_send_sge = MAX_SGE;  /* 每个Send WR的SGE数 */
+        qp_init_attr.cap.max_recv_sge = MAX_SGE;  /* 每个Recv WR的SGE数 */
+
+        res->qp_list[i] = ibv_create_qp(res->pd, &qp_init_attr);
+        if (!res->qp_list[i]) {
+            fprintf(stderr, "错误: 创建QP[%u]失败\n", i);
+            return -1;
+        }
+        printf("  QP[%u]: 0x%06x\n", i, res->qp_list[i]->qp_num);
+    }
+
+    printf("成功创建 %u 个QP\n", res->num_qp);
     return 0;
 }
 
@@ -165,12 +213,41 @@ int modify_qp_to_init(struct rdma_resources *res) {
 
     flags = IBV_QP_STATE | IBV_QP_PKEY_INDEX | IBV_QP_PORT | IBV_QP_ACCESS_FLAGS;
 
-    if (ibv_modify_qp(res->qp, &attr, flags)) {
+    if (ibv_modify_qp(res->qp_list[0], &attr, flags)) {
         fprintf(stderr, "错误: 修改QP到INIT状态失败\n");
         return -1;
     }
     printf("QP状态: RESET -> INIT\n");
 
+    return 0;
+}
+
+int modify_qp_list_to_init(struct rdma_resources *res) {
+    struct ibv_qp_attr attr;
+    int flags;
+    uint32_t i;
+
+    printf("\n========== 步骤10: 修改多个QP状态 RESET->INIT ==========\n");
+
+    memset(&attr, 0, sizeof(attr));
+    attr.qp_state = IBV_QPS_INIT;
+    attr.port_num = res->ib_port;
+    attr.pkey_index = 0;
+    attr.qp_access_flags = IBV_ACCESS_LOCAL_WRITE |
+                           IBV_ACCESS_REMOTE_READ |
+                           IBV_ACCESS_REMOTE_WRITE;
+
+    flags = IBV_QP_STATE | IBV_QP_PKEY_INDEX | IBV_QP_PORT | IBV_QP_ACCESS_FLAGS;
+
+    for (i = 0; i < res->num_qp; i++) {
+        if (ibv_modify_qp(res->qp_list[i], &attr, flags)) {
+            fprintf(stderr, "错误: 修改QP[%u]到INIT状态失败\n", i);
+            return -1;
+        }
+        printf("  QP[%u]: RESET -> INIT\n", i);
+    }
+
+    printf("成功修改 %u 个QP到INIT状态\n", res->num_qp);
     return 0;
 }
 
@@ -184,33 +261,30 @@ int modify_qp_to_rtr(struct rdma_resources *res,
 
     memset(&attr, 0, sizeof(attr));
     attr.qp_state = IBV_QPS_RTR;
-    attr.path_mtu = res->port_attr.active_mtu;  /* 使用端口实际MTU，而非硬编码 */
-    attr.dest_qp_num = remote_con_data->qp_num;  /* 远端QP号 */
-    attr.rq_psn = 0;  /* Receive队列的起始PSN (Packet Sequence Number) */
+    attr.path_mtu = res->port_attr.active_mtu;
+    attr.dest_qp_num = remote_con_data->qp_num;
+    attr.rq_psn = 0;
 
-    /* AH (Address Handle) 属性 */
-    attr.ah_attr.dlid = remote_con_data->lid;  /* 远端LID */
-    attr.ah_attr.sl = 0;  /* Service Level */
+    attr.ah_attr.dlid = remote_con_data->lid;
+    attr.ah_attr.sl = 0;
     attr.ah_attr.src_path_bits = 0;
     attr.ah_attr.port_num = res->ib_port;
 
-    /* 对于RoCEv2，强制设置GID（即使GID看起来为0也设置） */
     attr.ah_attr.is_global = 1;
     memcpy(&remote_gid, remote_con_data->gid, 16);
     attr.ah_attr.grh.dgid = remote_gid;
     attr.ah_attr.grh.flow_label = 0;
-    attr.ah_attr.grh.hop_limit = 1;  /* 对于RoCEv2通常设为1 */
+    attr.ah_attr.grh.hop_limit = 1;
     attr.ah_attr.grh.sgid_index = res->gid_idx;
     attr.ah_attr.grh.traffic_class = 0;
 
-    /* RC QP的可靠性参数 */
-    attr.max_dest_rd_atomic = 1;  /* 目标端最大未完成RDMA读/原子操作 */
-    attr.min_rnr_timer = 12;  /* RNR (Receiver Not Ready) 最小超时 */
+    attr.max_dest_rd_atomic = 1;
+    attr.min_rnr_timer = 12;
 
     flags = IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU | IBV_QP_DEST_QPN |
             IBV_QP_RQ_PSN | IBV_QP_MAX_DEST_RD_ATOMIC | IBV_QP_MIN_RNR_TIMER;
 
-    if (ibv_modify_qp(res->qp, &attr, flags)) {
+    if (ibv_modify_qp(res->qp_list[0], &attr, flags)) {
         fprintf(stderr, "错误: 修改QP到RTR状态失败: %s (errno=%d)\n",
                 strerror(errno), errno);
         fprintf(stderr, "调试提示:\n");
@@ -230,6 +304,56 @@ int modify_qp_to_rtr(struct rdma_resources *res,
     return 0;
 }
 
+int modify_qp_list_to_rtr(struct rdma_resources *res,
+                          struct cm_con_data_t *remote_con_data) {
+    struct ibv_qp_attr attr;
+    int flags;
+    union ibv_gid remote_gid;
+    uint32_t i;
+
+    printf("\n========== 步骤11: 修改多个QP状态 INIT->RTR ==========\n");
+
+    for (i = 0; i < res->num_qp; i++) {
+        memset(&attr, 0, sizeof(attr));
+        attr.qp_state = IBV_QPS_RTR;
+        attr.path_mtu = res->port_attr.active_mtu;
+        attr.dest_qp_num = remote_con_data[i].qp_num;
+        attr.rq_psn = 0;
+
+        /* AH (Address Handle) 属性 */
+        attr.ah_attr.dlid = remote_con_data[i].lid;
+        attr.ah_attr.sl = 0;
+        attr.ah_attr.src_path_bits = 0;
+        attr.ah_attr.port_num = res->ib_port;
+
+        /* 对于RoCEv2，强制设置GID */
+        attr.ah_attr.is_global = 1;
+        memcpy(&remote_gid, remote_con_data[i].gid, 16);
+        attr.ah_attr.grh.dgid = remote_gid;
+        attr.ah_attr.grh.flow_label = 0;
+        attr.ah_attr.grh.hop_limit = 1;
+        attr.ah_attr.grh.sgid_index = res->gid_idx;
+        attr.ah_attr.grh.traffic_class = 0;
+
+        /* RC QP的可靠性参数 */
+        attr.max_dest_rd_atomic = 1;
+        attr.min_rnr_timer = 12;
+
+        flags = IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU | IBV_QP_DEST_QPN |
+                IBV_QP_RQ_PSN | IBV_QP_MAX_DEST_RD_ATOMIC | IBV_QP_MIN_RNR_TIMER;
+
+        if (ibv_modify_qp(res->qp_list[i], &attr, flags)) {
+            fprintf(stderr, "错误: 修改QP[%u]到RTR状态失败\n", i);
+            return -1;
+        }
+        printf("  QP[%u]: INIT -> RTR (远端QP: 0x%06x, 远端LID: 0x%04x)\n",
+               i, remote_con_data[i].qp_num, remote_con_data[i].lid);
+    }
+
+    printf("成功修改 %u 个QP到RTR状态\n", res->num_qp);
+    return 0;
+}
+
 int modify_qp_to_rts(struct rdma_resources *res) {
     struct ibv_qp_attr attr;
     int flags;
@@ -238,21 +362,51 @@ int modify_qp_to_rts(struct rdma_resources *res) {
 
     memset(&attr, 0, sizeof(attr));
     attr.qp_state = IBV_QPS_RTS;
-    attr.timeout = 14;  /* 超时时间 */
-    attr.retry_cnt = 7;  /* 重试次数 */
-    attr.rnr_retry = 7;  /* RNR重试次数 */
-    attr.sq_psn = 0;  /* Send队列的起始PSN */
-    attr.max_rd_atomic = 1;  /* 本地最大未完成RDMA读/原子操作 */
+    attr.timeout = 14;
+    attr.retry_cnt = 7;
+    attr.rnr_retry = 7;
+    attr.sq_psn = 0;
+    attr.max_rd_atomic = 1;
 
     flags = IBV_QP_STATE | IBV_QP_TIMEOUT | IBV_QP_RETRY_CNT |
             IBV_QP_RNR_RETRY | IBV_QP_SQ_PSN | IBV_QP_MAX_QP_RD_ATOMIC;
 
-    if (ibv_modify_qp(res->qp, &attr, flags)) {
+    if (ibv_modify_qp(res->qp_list[0], &attr, flags)) {
         fprintf(stderr, "错误: 修改QP到RTS状态失败\n");
         return -1;
     }
     printf("QP状态: RTR -> RTS (Ready to Send)\n");
 
+    return 0;
+}
+
+int modify_qp_list_to_rts(struct rdma_resources *res) {
+    struct ibv_qp_attr attr;
+    int flags;
+    uint32_t i;
+
+    printf("\n========== 步骤12: 修改多个QP状态 RTR->RTS ==========\n");
+
+    memset(&attr, 0, sizeof(attr));
+    attr.qp_state = IBV_QPS_RTS;
+    attr.timeout = 14;
+    attr.retry_cnt = 7;
+    attr.rnr_retry = 7;
+    attr.sq_psn = 0;
+    attr.max_rd_atomic = 1;
+
+    flags = IBV_QP_STATE | IBV_QP_TIMEOUT | IBV_QP_RETRY_CNT |
+            IBV_QP_RNR_RETRY | IBV_QP_SQ_PSN | IBV_QP_MAX_QP_RD_ATOMIC;
+
+    for (i = 0; i < res->num_qp; i++) {
+        if (ibv_modify_qp(res->qp_list[i], &attr, flags)) {
+            fprintf(stderr, "错误: 修改QP[%u]到RTS状态失败\n", i);
+            return -1;
+        }
+        printf("  QP[%u]: RTR -> RTS\n", i);
+    }
+
+    printf("成功修改 %u 个QP到RTS状态\n", res->num_qp);
     return 0;
 }
 
@@ -285,10 +439,105 @@ int sock_sync_data(int sock,
     return 0;
 }
 
+int sock_sync_data_multi(int sock,
+                         struct cm_con_data_t *local_con_data,
+                         uint32_t local_num_qp,
+                         struct cm_con_data_t *remote_con_data,
+                         uint32_t *remote_num_qp) {
+    int rc;
+    int read_bytes = 0;
+    int total_read_bytes = 0;
+    uint32_t i;
+    uint32_t expected_size;
+
+    /* 先发送本地QP数量 */
+    rc = write(sock, &local_num_qp, sizeof(local_num_qp));
+    if (rc != sizeof(local_num_qp)) {
+        fprintf(stderr, "错误: 发送本地QP数量失败\n");
+        return -1;
+    }
+    printf("已发送本地QP数量: %u\n", local_num_qp);
+
+    /* 发送所有本地QP连接信息 */
+    for (i = 0; i < local_num_qp; i++) {
+        rc = write(sock, &local_con_data[i], sizeof(struct cm_con_data_t));
+        if (rc != sizeof(struct cm_con_data_t)) {
+            fprintf(stderr, "错误: 发送QP[%u]连接信息失败\n", i);
+            return -1;
+        }
+    }
+    printf("已发送 %u 个本地QP的连接信息\n", local_num_qp);
+
+    /* 接收远端QP数量 */
+    total_read_bytes = 0;
+    while (total_read_bytes < sizeof(*remote_num_qp)) {
+        read_bytes = read(sock, (char *)remote_num_qp + total_read_bytes,
+                         sizeof(*remote_num_qp) - total_read_bytes);
+        if (read_bytes > 0) {
+            total_read_bytes += read_bytes;
+        } else {
+            fprintf(stderr, "错误: 接收远端QP数量失败\n");
+            return -1;
+        }
+    }
+    printf("已接收远端QP数量: %u\n", *remote_num_qp);
+
+    if (*remote_num_qp > MAX_QP) {
+        fprintf(stderr, "错误: 远端QP数量(%u)超过最大限制(%u)\n",
+                *remote_num_qp, MAX_QP);
+        return -1;
+    }
+
+    /* 接收所有远端QP连接信息 */
+    expected_size = *remote_num_qp * sizeof(struct cm_con_data_t);
+    total_read_bytes = 0;
+    while (total_read_bytes < expected_size) {
+        read_bytes = read(sock, (char *)remote_con_data + total_read_bytes,
+                         expected_size - total_read_bytes);
+        if (read_bytes > 0) {
+            total_read_bytes += read_bytes;
+        } else {
+            fprintf(stderr, "错误: 接收远端QP连接信息失败\n");
+            return -1;
+        }
+    }
+    printf("已接收 %u 个远端QP的连接信息\n", *remote_num_qp);
+
+    return 0;
+}
+
 int post_receive(struct rdma_resources *res) {
     struct ibv_recv_wr rr;
     struct ibv_sge sge;
     struct ibv_recv_wr *bad_wr;
+
+    memset(&sge, 0, sizeof(sge));
+    sge.addr = (uintptr_t)res->buf;
+    sge.length = res->buf_size;
+    sge.lkey = res->mr->lkey;
+
+    memset(&rr, 0, sizeof(rr));
+    rr.wr_id = 0;
+    rr.sg_list = &sge;
+    rr.num_sge = 1;
+
+    if (ibv_post_recv(res->qp_list[0], &rr, &bad_wr)) {
+        fprintf(stderr, "错误: Post Receive失败\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+int post_receive_qp(struct rdma_resources *res, uint32_t qp_idx) {
+    struct ibv_recv_wr rr;
+    struct ibv_sge sge;
+    struct ibv_recv_wr *bad_wr;
+
+    if (qp_idx >= res->num_qp) {
+        fprintf(stderr, "错误: QP索引[%u]超出范围[0-%u)\n", qp_idx, res->num_qp);
+        return -1;
+    }
 
     /* 设置Scatter-Gather Element */
     memset(&sge, 0, sizeof(sge));
@@ -298,14 +547,27 @@ int post_receive(struct rdma_resources *res) {
 
     /* 设置Receive Work Request */
     memset(&rr, 0, sizeof(rr));
-    rr.wr_id = 0;  /* Work Request ID */
+    rr.wr_id = qp_idx;  /* Work Request ID设为QP索引以便识别 */
     rr.sg_list = &sge;
     rr.num_sge = 1;
 
-    /* 投递Receive WR到RQ */
-    if (ibv_post_recv(res->qp, &rr, &bad_wr)) {
-        fprintf(stderr, "错误: Post Receive失败\n");
+    /* 投递Receive WR到指定QP的RQ */
+    if (ibv_post_recv(res->qp_list[qp_idx], &rr, &bad_wr)) {
+        fprintf(stderr, "错误: Post Receive到QP[%u]失败\n", qp_idx);
         return -1;
+    }
+
+    return 0;
+}
+
+int post_receive_all(struct rdma_resources *res) {
+    uint32_t i;
+
+    for (i = 0; i < res->num_qp; i++) {
+        if (post_receive_qp(res, i)) {
+            fprintf(stderr, "错误: Post Receive到QP[%u]失败\n", i);
+            return -1;
+        }
     }
 
     return 0;
@@ -316,6 +578,36 @@ int post_send(struct rdma_resources *res, enum ibv_wr_opcode opcode) {
     struct ibv_sge sge;
     struct ibv_send_wr *bad_wr;
 
+    memset(&sge, 0, sizeof(sge));
+    sge.addr = (uintptr_t)res->buf;
+    sge.length = res->buf_size;
+    sge.lkey = res->mr->lkey;
+
+    memset(&sr, 0, sizeof(sr));
+    sr.wr_id = 0;
+    sr.opcode = opcode;
+    sr.sg_list = &sge;
+    sr.num_sge = 1;
+    sr.send_flags = IBV_SEND_SIGNALED;
+
+    if (ibv_post_send(res->qp_list[0], &sr, &bad_wr)) {
+        fprintf(stderr, "错误: Post Send失败\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+int post_send_qp(struct rdma_resources *res, uint32_t qp_idx, enum ibv_wr_opcode opcode) {
+    struct ibv_send_wr sr;
+    struct ibv_sge sge;
+    struct ibv_send_wr *bad_wr;
+
+    if (qp_idx >= res->num_qp) {
+        fprintf(stderr, "错误: QP索引[%u]超出范围[0-%u)\n", qp_idx, res->num_qp);
+        return -1;
+    }
+
     /* 设置Scatter-Gather Element */
     memset(&sge, 0, sizeof(sge));
     sge.addr = (uintptr_t)res->buf;
@@ -324,22 +616,22 @@ int post_send(struct rdma_resources *res, enum ibv_wr_opcode opcode) {
 
     /* 设置Send Work Request */
     memset(&sr, 0, sizeof(sr));
-    sr.wr_id = 0;
+    sr.wr_id = qp_idx;  /* Work Request ID设为QP索引以便识别 */
     sr.opcode = opcode;
     sr.sg_list = &sge;
     sr.num_sge = 1;
-    sr.send_flags = IBV_SEND_SIGNALED;  /* 产生CQE */
+    sr.send_flags = IBV_SEND_SIGNALED;
 
-    /* 投递Send WR到SQ */
-    if (ibv_post_send(res->qp, &sr, &bad_wr)) {
-        fprintf(stderr, "错误: Post Send失败\n");
+    /* 投递Send WR到指定QP的SQ */
+    if (ibv_post_send(res->qp_list[qp_idx], &sr, &bad_wr)) {
+        fprintf(stderr, "错误: Post Send到QP[%u]失败\n", qp_idx);
         return -1;
     }
 
     return 0;
 }
 
-int poll_completion(struct rdma_resources *res, int expected_completions) {
+int poll_completion(struct rdma_resources *res, int expected_completions, int *qp_idx) {
     struct ibv_wc wc;
     int poll_result;
     int total_completions = 0;
@@ -347,11 +639,9 @@ int poll_completion(struct rdma_resources *res, int expected_completions) {
     unsigned long cur_time_msec;
     struct timeval cur_time;
 
-    /* 获取起始时间 */
     gettimeofday(&cur_time, NULL);
     start_time_msec = (cur_time.tv_sec * 1000) + (cur_time.tv_usec / 1000);
 
-    /* 轮询CQ直到获得期望数量的完成事件 */
     while (total_completions < expected_completions) {
         poll_result = ibv_poll_cq(res->cq, 1, &wc);
         if (poll_result < 0) {
@@ -366,9 +656,11 @@ int poll_completion(struct rdma_resources *res, int expected_completions) {
                         ibv_wc_status_str(wc.status));
                 return -1;
             }
+            if (qp_idx) {
+                *qp_idx = (int)wc.wr_id;  /* 返回QP索引 */
+            }
         }
 
-        /* 检查超时 (5秒) */
         gettimeofday(&cur_time, NULL);
         cur_time_msec = (cur_time.tv_sec * 1000) + (cur_time.tv_usec / 1000);
         if ((cur_time_msec - start_time_msec) > 5000) {
@@ -425,15 +717,18 @@ static const char* qp_type_to_str(enum ibv_qp_type type) {
 /**
  * 打印QP的运行时状态
  */
-int print_qp_state(struct rdma_resources *res, const char *title) {
+int print_qp_state(struct rdma_resources *res, uint32_t qp_idx, const char *title) {
     struct ibv_qp_attr attr;
     struct ibv_qp_init_attr init_attr;
     int attr_mask;
+    struct ibv_qp *qp;
 
-    if (!res || !res->qp) {
-        fprintf(stderr, "错误: 无效的QP资源\n");
+    if (!res || !res->qp_list || qp_idx >= res->num_qp) {
+        fprintf(stderr, "错误: 无效的QP资源或索引\n");
         return -1;
     }
+
+    qp = res->qp_list[qp_idx];
 
     /* 查询QP属性 */
     attr_mask = IBV_QP_STATE | IBV_QP_CUR_STATE | IBV_QP_EN_SQD_ASYNC_NOTIFY |
@@ -446,7 +741,7 @@ int print_qp_state(struct rdma_resources *res, const char *title) {
     memset(&attr, 0, sizeof(attr));
     memset(&init_attr, 0, sizeof(init_attr));
 
-    if (ibv_query_qp(res->qp, &attr, attr_mask, &init_attr)) {
+    if (ibv_query_qp(qp, &attr, attr_mask, &init_attr)) {
         fprintf(stderr, "错误: 查询QP属性失败\n");
         return -1;
     }
@@ -454,17 +749,17 @@ int print_qp_state(struct rdma_resources *res, const char *title) {
     printf("\n");
     printf("╔════════════════════════════════════════════════════════════╗\n");
     if (title) {
-        printf("║  QP运行时状态 - %s\n", title);
+        printf("║  QP[%u]运行时状态 - %s\n", qp_idx, title);
         printf("║────────────────────────────────────────────────────────────║\n");
     } else {
-        printf("║  QP运行时状态信息\n");
+        printf("║  QP[%u]运行时状态信息\n", qp_idx);
         printf("║────────────────────────────────────────────────────────────║\n");
     }
     
     /* 基本信息 */
     printf("║\n");
     printf("║ 【基本信息】\n");
-    printf("║  QP号: 0x%06x\n", res->qp->qp_num);
+    printf("║  QP号: 0x%06x\n", qp->qp_num);
     printf("║  QP类型: %s\n", qp_type_to_str(init_attr.qp_type));
 
     /* QP状态 */
@@ -513,7 +808,7 @@ int print_qp_state(struct rdma_resources *res, const char *title) {
     printf("║\n");
     printf("║ 【可靠性参数】\n");
     printf("║  超时: %u (大约 %.1f ms)\n", attr.timeout,
-           (1UL << attr.timeout) * 4.096 / 1000.0);  /* 转换为毫秒 */
+           (1UL << attr.timeout) * 4.096 / 1000.0);
     printf("║  重试次数: %u\n", attr.retry_cnt);
     printf("║  RNR重试次数: %u\n", attr.rnr_retry);
     printf("║  RNR最小超时: %u\n", attr.min_rnr_timer);
@@ -572,10 +867,17 @@ int print_qp_state(struct rdma_resources *res, const char *title) {
 void cleanup_rdma_resources(struct rdma_resources *res) {
     printf("\n========== 清理RDMA资源 ==========\n");
 
-    if (res->qp) {
-        ibv_destroy_qp(res->qp);
-        printf("销毁QP\n");
+    if (res->qp_list) {
+        for (uint32_t i = 0; i < res->num_qp; i++) {
+            if (res->qp_list[i]) {
+                ibv_destroy_qp(res->qp_list[i]);
+                printf("销毁QP[%u]\n", i);
+            }
+        }
+        free(res->qp_list);
+        printf("释放QP列表\n");
     }
+
     if (res->cq) {
         ibv_destroy_cq(res->cq);
         printf("销毁CQ\n");

@@ -12,26 +12,59 @@
 - 支持RoCEv2协议
 - 简单易懂的代码结构
 
+## 📚 文档导航
+
+本项目的文档已整理为清晰的结构，选择合适的内容开始：
+
+### 🚀 快速开始
+- **[快速开始指南](docs/QUICK_START.md)** - 5分钟快速上手
+- **[学习路径](docs/guides/LEARNING_PATH.md)** - 按阶段选择学习线路
+
+### 📖 深入学习
+- **[项目架构](docs/technical/ARCHITECTURE.md)** - 整体设计说明
+- **[AI编程指南](docs/guides/AI_PROGRAMMING_GUIDE.md)** - AI协作指南
+- **[最佳实践](docs/guides/BEST_PRACTICES.md)** - 开发工作流
+
+### 🔧 技术文档
+- **[QP状态管理](docs/technical/QP_STATE_USAGE.md)** - QP生命周期
+- **[多QP架构](docs/technical/MULTI_QP_README.md)** - 多QP详解
+- **[多QP总结](docs/technical/MULTI_QP_SUMMARY.md)** - 改造总结
+- **[C编码规范](./ai/_conventions.md)** - 编码规范标准
+
+### ⚙️ 故障排查
+- **[详细排查](docs/troubleshooting/TROUBLESHOOTING.md)** - 深度排查指南
+- **[快速修复](docs/troubleshooting/QUICKFIX.md)** - 常见问题速解
+- **[常见问题](docs/troubleshooting/FAQ.md)** - Q&A集合
+
 ## 项目结构
 
 ```
 RoCEv2_learn/
-├── src/
+├── src/                   # 源代码
 │   ├── rdma_common.h      # 公共头文件和常量定义
-│   ├── rdma_common.c      # 共享函数实现（生命周期、状态转换）
-│   ├── rdma_server.c      # 服务端程序
-│   └── rdma_client.c      # 客户端程序
+│   ├── rdma_common.c      # 共享函数实现（多QP支持）
+│   ├── rdma_server.c      # 服务端程序（多QP）
+│   └── rdma_client.c      # 客户端程序（多QP）
+├── docs/                  # 项目文档
+│   ├── README.md          # 文档导航中心
+│   ├── QUICK_START.md     # 快速开始指南
+│   ├── guides/            # 指南和教程
+│   ├── technical/         # 技术文档
+│   └── troubleshooting/   # 故障排查
+├── .ai/                   # AI编程规范
+│   ├── README.md          # 规范手册
+│   ├── _conventions.md    # C编码规范
+│   ├── _index.md          # 规范索引
+│   └── modules/           # 模块规范
+├── scripts/               # 工具脚本
+│   ├── diagnose.sh        # 诊断脚本
+│   └── show_gids.sh       # GID查看脚本
+├── tools/                 # 工具脚本（备用）
+├── reports/               # 改造报告
 ├── build/                 # 编译输出目录
-├── Makefile               # 编译脚本
-├── diagnose.sh            # 诊断脚本（检查RDMA设备和GID配置）
-├── show_gids.sh           # GID查看脚本
 ├── logs/                  # 运行日志目录
-├── README.md              # 项目主文档
-├── CLAUDE.md              # AI助手指导文档
-├── QUICKFIX.md            # 快速修复指南
-├── TROUBLESHOOTING.md     # 详细故障排除
-├── QP_STATE_USAGE.md      # QP运行时状态查询说明
-└── QP_STATE_USAGE.md      # QP状态转换使用指南
+├── Makefile               # 编译脚本
+└── README.md              # 项目主文档
 ```
 
 ## 环境要求
@@ -331,17 +364,17 @@ Server Side:                    Client Side:
 
 ```bash
 # 运行诊断脚本，自动检查配置
-./diagnose.sh
+./scripts/diagnose.sh
 
 # 查看GID表
-./show_gids.sh
+./scripts/show_gids.sh
 ```
 
 **快速诊断流程：**
-1. 运行 `./diagnose.sh` 检查设备和GID
+1. 运行 `./scripts/diagnose.sh` 检查设备和GID
 2. 确保GID索引1的值不是全0
 3. 使用正确的GID索引启动Server和Client（通常是1）
-4. 如果仍然失败，查看 [QUICKFIX.md](QUICKFIX.md) 或 [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+4. 如果仍然失败，查看 [QUICKFIX.md](docs/troubleshooting/QUICKFIX.md) 或 [TROUBLESHOOTING.md](docs/troubleshooting/TROUBLESHOOTING.md)
 
 ## 常见问题
 
