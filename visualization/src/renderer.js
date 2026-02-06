@@ -14,16 +14,16 @@ class Renderer {
         this.ctx = null;
         this.initialized = false;
         
-        // 配置 - Geek / Cyberpunk 风格
+        // 配置 - Geek / Cyberpunk 风格 (蓝青色方案)
         this.colors = {
-            primary: '#00ff88',
-            secondary: '#00ccff',
-            success: '#00ff88',
-            warning: '#ffaa00',
-            danger: '#ff0055',
-            neutral: '#00ff8844',
-            text: '#00ff88',
-            background: '#0f0f1e',
+            primary: '#00d4ff',      // 明亮青色
+            secondary: '#0088ff',    // 蓝色
+            success: '#00d4ff',      // 成功用青色
+            warning: '#ffaa00',      // 警告用橙色
+            danger: '#ff3366',       // 危险用粉红
+            neutral: '#0088ff44',    // 透明蓝
+            text: '#00d4ff',         // 文字用青色
+            background: '#0a0e27',   // 稍微深一点的背景
         };
 
         this.fonts = {
@@ -123,10 +123,7 @@ class Renderer {
             }
         }
 
-        // 绘制当前步骤信息
-        if (steps[currentIndex]) {
-            this.drawCurrentStepInfo(steps[currentIndex], padding + 10, this.canvas.height - 120);
-        }
+        // 步骤信息已移到侧边栏，不在Canvas上显示
     }
 
     drawDataPlaneFlow(scenario) {
@@ -170,9 +167,9 @@ class Renderer {
         });
 
         // 绘制当前步骤信息
-        if (steps[currentIndex]) {
-            this.drawCurrentStepInfo(steps[currentIndex], startX, this.canvas.height - 120);
         }
+
+        // 步骤信息已移到侧边栏，不在Canvas上显示
     }
 
     drawStepNode(x, y, radius, step, isActive, isCompleted) {
