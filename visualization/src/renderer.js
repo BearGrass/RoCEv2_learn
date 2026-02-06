@@ -92,15 +92,19 @@ class Renderer {
         const totalSteps = steps.length;
         const currentIndex = scenario.currentStepIndex;
 
-        // 布局参数
-        const cols = 2;
-        const rows = Math.ceil(totalSteps / cols);
-        const cellWidth = (this.canvas.width - 60) / cols;
-        const cellHeight = (this.canvas.height - 80) / rows;
-        const padding = 30;
-
         // 绘制标题
         this.drawTitle('Queue Pair 创建流程');
+
+        // 绘制背景组件框
+        this.drawComponentBox('系统内存', 50, 100, 150, 300, '#0066aa');
+        this.drawComponentBox('内核驱动', this.canvas.width - 200, 100, 150, 300, '#0066aa');
+
+        // 布局参数 - 中间流程
+        const cols = 2;
+        const rows = Math.ceil(totalSteps / cols);
+        const cellWidth = (this.canvas.width - 420) / cols;
+        const cellHeight = (this.canvas.height - 120) / rows;
+        const padding = 220;
 
         // 绘制步骤节点
         for (let i = 0; i < steps.length; i++) {
@@ -108,18 +112,27 @@ class Renderer {
             const col = i % cols;
             const row = Math.floor(i / cols);
             const x = padding + col * cellWidth + cellWidth / 2;
-            const y = 80 + row * cellHeight + cellHeight / 2;
+            const y = 100 + row * cellHeight + cellHeight / 2;
 
             // 绘制节点
-            this.drawStepNode(x, y, 40, step, i === currentIndex, i < currentIndex);
+            this.drawStepNode(x, y, 35, step, i === currentIndex, i < currentIndex);
 
             // 绘制连接线
             if (i < steps.length - 1) {
                 const nextCol = (i + 1) % cols;
                 const nextRow = Math.floor((i + 1) / cols);
                 const nextX = padding + nextCol * cellWidth + cellWidth / 2;
-                const nextY = 80 + nextRow * cellHeight + cellHeight / 2;
+                const nextY = 100 + nextRow * cellHeight + cellHeight / 2;
                 this.drawArrow(x, y + 40, nextX, nextY - 40, step.isCompleted ? this.colors.success : this.colors.neutral);
+            }
+            
+            // 绘制与组件的交互线
+            if (i % 2 === 0) {
+                // 左侧交互（内存）
+                this.drawInteractionArrow(x - 30, y, 50, 100, '#0088ff', 'write');
+            } else {
+                // 右侧交互（驱动）
+                this.drawInteractionArrow(x + 30, y, this.canvas.width - 200, 100, '#00ff88', 'read');
             }
         }
 
@@ -136,35 +149,52 @@ class Renderer {
         const steps = scenario.steps;
         const currentIndex = scenario.currentStepIndex;
 
-        const startX = 50;
-        const startY = 100;
-        const stepWidth = 180;
-        const stepHeight = 120;
-        const lineHeight = 40;
-
         // 绘制标题
         this.drawTitle('RDMA 数据面流程');
 
-        // 绘制时间线
-        const y = startY + 80;
-        this.ctx.strokeStyle = this.colors.neutral;
-        this.ctx.lineWidth = 2;
+        // 绘制 Client 和 Server 框
+        const boxWidth = 120;
+        const boxHeight = this.canvas.height - 150;
+        const clientX = 40;
+        const serverX = this.canvas.width - clientX - boxWidth;
+        
+        this.drawComponentBox('CLIENT', clientX, 100, boxWidth, boxHeight, '#0044aa');
+        this.drawComponentBox('SERVER', serverX, 100, boxWidth, boxHeight, '#00aa44');
+
+        // 中间时间线
+        const timelineY = this.canvas.height / 2;
+        const timelineStartX = clientX + boxWidth + 30;
+        const timelineEndX = serverX - 30;
+
+        this.ctx.strokeStyle = this.colors.primary;
+        this.ctx.lineWidth = 3;
         this.ctx.beginPath();
-        this.ctx.moveTo(startX, y);
-        this.ctx.lineTo(this.canvas.width - startX, y);
+        this.ctx.moveTo(timelineStartX, timelineY);
+        this.ctx.lineTo(timelineEndX, timelineY);
         this.ctx.stroke();
 
-        // 绘制步骤
-        steps.forEach((step, i) => {
-            const x = startX + (i % 4) * stepWidth;
-            const rowOffset = Math.floor(i / 4) * stepHeight;
+        // 绘制步骤和交互箭头
+        const stepSpacing = (timelineEndX - timelineStartX) / steps.length;
+        for (let i = 0; i < steps.length; i++) {
+            const step = steps[i];
+            const stepX = timelineStartX + (i + 0.5) * stepSpacing;
+            const isActive = i === currentIndex;
+            const isCompleted = i < currentIndex;
 
-            // 在时间线上放置节点
-            const nodeY = y + (i % 2) * 100 - 50;
-            const nodeX = startX + 50 + (i * (this.canvas.width - 100) / steps.length);
+            // 步骤节点在时间线上
+            this.drawStepNode(stepX, timelineY, 30, step, isActive, isCompleted);
 
-            this.drawStepNode(nodeX, nodeY, 35, step, i === currentIndex, i < currentIndex);
-        });
+            // 根据步骤类型绘制交互箭头
+            let direction = i % 2; // 0: client->server, 1: server->client
+            
+            if (direction === 0) {
+                // Client 发送数据到 Server
+                this.drawDataFlowArrow(clientX + boxWidth, 100 + (i+1)*40, stepX - 30, timelineY - 20, '#00d4ff', 'SEND');
+            } else {
+                // Server 响应回 Client
+                this.drawDataFlowArrow(serverX, 100 + (i+1)*40, stepX + 30, timelineY + 20, '#00ff88', 'RESPONSE');
+            }
+        }
 
         // 步骤信息已移到侧边栏，不在Canvas上显示
     }
@@ -382,5 +412,102 @@ class Renderer {
             }
         }
         this.ctx.stroke();
+    }
+
+    // 绘制组件框（系统、内存、client、server等）
+    drawComponentBox(label, x, y, width, height, color) {
+        // 背景
+        const gradient = this.ctx.createLinearGradient(x, y, x, y + height);
+        gradient.addColorStop(0, color);
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
+        this.ctx.fillStyle = gradient;
+        this.ctx.fillRect(x, y, width, height);
+
+        // 边框
+        this.ctx.strokeStyle = color;
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(x, y, width, height);
+
+        // 标签
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = 'bold 14px "Courier New", monospace';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'top';
+        this.ctx.fillText(label, x + width / 2, y + 10);
+    }
+
+    // 绘制交互箭头（用于显示组件间的交互）
+    drawInteractionArrow(fromX, fromY, toX, toY, color, type) {
+        const headlen = 10;
+        const angle = Math.atan2(toY - fromY, toX - fromX);
+
+        // 虚线
+        this.ctx.strokeStyle = color;
+        this.ctx.lineWidth = 2;
+        this.ctx.setLineDash([5, 5]);
+        this.ctx.beginPath();
+        this.ctx.moveTo(fromX, fromY);
+        this.ctx.lineTo(toX, toY);
+        this.ctx.stroke();
+        this.ctx.setLineDash([]);
+
+        // 箭头
+        this.ctx.fillStyle = color;
+        this.ctx.beginPath();
+        this.ctx.moveTo(toX, toY);
+        this.ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
+        this.ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        // 标签
+        if (type) {
+            this.ctx.fillStyle = color;
+            this.ctx.font = '10px "Courier New", monospace';
+            this.ctx.textAlign = 'center';
+            const midX = (fromX + toX) / 2;
+            const midY = (fromY + toY) / 2 - 5;
+            this.ctx.fillText(type, midX, midY);
+        }
+    }
+
+    // 绘制数据流箭头（用于client-server交互）
+    drawDataFlowArrow(fromX, fromY, toX, toY, color, label) {
+        const headlen = 12;
+        const angle = Math.atan2(toY - fromY, toX - fromX);
+
+        // 曲线
+        this.ctx.strokeStyle = color;
+        this.ctx.lineWidth = 3;
+        this.ctx.shadowColor = color;
+        this.ctx.shadowBlur = 10;
+
+        const controlX = (fromX + toX) / 2;
+        const controlY = (fromY + toY) / 2 + 30;
+
+        this.ctx.beginPath();
+        this.ctx.moveTo(fromX, fromY);
+        this.ctx.quadraticCurveTo(controlX, controlY, toX, toY);
+        this.ctx.stroke();
+        this.ctx.shadowColor = 'transparent';
+
+        // 箭头头
+        this.ctx.fillStyle = color;
+        this.ctx.beginPath();
+        this.ctx.moveTo(toX, toY);
+        this.ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
+        this.ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        // 标签
+        if (label) {
+            this.ctx.fillStyle = color;
+            this.ctx.font = 'bold 11px "Courier New", monospace';
+            this.ctx.textAlign = 'center';
+            const midX = (fromX + toX) / 2 + 20;
+            const midY = (fromY + toY) / 2;
+            this.ctx.fillText(label, midX, midY);
+        }
     }
 }
