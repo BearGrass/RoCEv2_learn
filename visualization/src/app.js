@@ -111,8 +111,11 @@ class RDMAVisualizationApp {
         const scenario = getScenario(scenarioId);
         
         if (scenario) {
+            // 确保 canvas 有合适的大小
+            this.renderer.resizeCanvas();
             this.animator.setScenario(scenario);
             this.updateUI(scenario.getCurrentStep(), 0, scenario.steps.length);
+            this.updateButtonStates();
         }
     }
 
@@ -214,7 +217,17 @@ class RDMAVisualizationApp {
 }
 
 // 页面加载完成后初始化应用
-document.addEventListener('DOMContentLoaded', () => {
-    window.app = new RDMAVisualizationApp();
-    console.log('RDMA Visualization App initialized');
-});
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+            window.app = new RDMAVisualizationApp();
+            console.log('RDMA Visualization App initialized');
+        }, 100);
+    });
+} else {
+    // DOM 已经加载
+    setTimeout(() => {
+        window.app = new RDMAVisualizationApp();
+        console.log('RDMA Visualization App initialized');
+    }, 100);
+}

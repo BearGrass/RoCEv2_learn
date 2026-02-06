@@ -7,8 +7,6 @@ class Renderer {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
-        this.resizeCanvas();
-        window.addEventListener('resize', () => this.resizeCanvas());
         
         // 配置
         this.colors = {
@@ -28,12 +26,21 @@ class Renderer {
             normal: '13px system-ui',
             small: '11px system-ui',
         };
+        
+        // 延迟 resize 以确保 DOM 完全加载
+        window.addEventListener('load', () => this.resizeCanvas());
+        window.addEventListener('resize', () => this.resizeCanvas());
+        
+        // 初始化 canvas 大小
+        setTimeout(() => this.resizeCanvas(), 100);
     }
 
     resizeCanvas() {
         const rect = this.canvas.parentElement.getBoundingClientRect();
-        this.canvas.width = rect.width;
-        this.canvas.height = rect.height;
+        if (rect.width > 0 && rect.height > 0) {
+            this.canvas.width = rect.width;
+            this.canvas.height = rect.height;
+        }
     }
 
     clear() {
