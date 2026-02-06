@@ -218,5 +218,10 @@ function getAllScenarios() {
 
 // 获取特定场景
 function getScenario(scenarioId) {
-    return SCENARIOS[scenarioId];
+    const ScenarioClass = SCENARIOS[scenarioId];
+    if (!ScenarioClass) {
+        console.error('Unknown scenario:', scenarioId);
+        return null;
+    }
+    return new ScenarioClass();
 }
