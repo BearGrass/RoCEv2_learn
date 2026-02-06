@@ -26,11 +26,16 @@ class Animator {
     }
 
     play() {
-        if (!this.currentScenario) return;
+        console.log('Animator.play() called');
+        if (!this.currentScenario) {
+            console.warn('No scenario loaded');
+            return;
+        }
         
         this.isPlaying = true;
         this.isPaused = false;
         this.stepStartTime = Date.now();
+        console.log('Starting animation');
         this.animate();
     }
 
@@ -118,6 +123,7 @@ class Animator {
 
     animate() {
         if (!this.isPlaying || !this.currentScenario) {
+            console.warn('animate() returned early - isPlaying:', this.isPlaying, 'hasScenario:', !!this.currentScenario);
             return;
         }
 
