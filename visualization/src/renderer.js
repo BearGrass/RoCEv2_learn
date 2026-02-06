@@ -157,6 +157,8 @@ class Renderer {
         }
 
         // 步骤信息已移到侧边栏，不在Canvas上显示
+        // 在底部显示流程说明
+        this.drawFlowExplanation('QP创建流程：依次分配保护域、创建完成队列、注册内存、创建QP、转换QP状态（INIT→RTR→RTS）', 0.95);
     }
 
     drawDirectionLabel(x, y, text, color) {
@@ -242,6 +244,31 @@ class Renderer {
         }
 
         // 步骤信息已移到侧边栏，不在Canvas上显示
+        // 在底部显示流程说明
+        this.drawFlowExplanation('数据面流程：客户端准备并发送RDMA Write请求，网卡直接写入远端内存，服务器接收并确认完成', 0.95);
+    }
+
+    drawFlowExplanation(text, yPercent) {
+        const y = this.canvas.height * yPercent;
+        const boxHeight = 35;
+        const padding = 20;
+        const boxY = y - boxHeight / 2;
+
+        // 背景框
+        this.ctx.fillStyle = 'rgba(0, 50, 100, 0.8)';
+        this.ctx.fillRect(20, boxY, this.canvas.width - 40, boxHeight);
+        
+        // 边框
+        this.ctx.strokeStyle = '#0088ff';
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(20, boxY, this.canvas.width - 40, boxHeight);
+
+        // 文字
+        this.ctx.fillStyle = '#00d4ff';
+        this.ctx.font = '12px "Courier New", monospace';
+        this.ctx.textAlign = 'left';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText('ℹ ' + text, padding + 20, y);
     }
 
     drawStepNode(x, y, radius, step, isActive, isCompleted) {
