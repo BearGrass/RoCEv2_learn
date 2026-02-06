@@ -1,3 +1,27 @@
+/**
+ * @file rdma_common.c
+ * @brief RDMA核心功能实现 - 资源管理、状态转换、工作请求投递
+ *
+ * 本文件实现RDMA生命周期管理的所有关键步骤，包括：
+ * - RDMA资源的初始化和清理（设备、PD、CQ、MR）
+ * - QP状态机转移（RESET → INIT → RTR → RTS）
+ * - 多QP管理（创建、配置、状态转换）
+ * - TCP套接字通过元数据交换（QP号、LID、GID）
+ * - 发送和接收请求投递
+ * - 完成队列轮询和事件处理
+ *
+ * 设计特点：
+ * - 支持多QP共享单个CQ，提高资源利用率
+ * - 完整的错误处理和日志输出
+ * - 支持调试模式的详细状态打印
+ *
+ * @note 所有函数必须遵守多QP共享CQ的设计约束
+ * @note RoCEv2模式下GID索引必须设置为 >= 1
+ *
+ * @author AI Programming Assistant
+ * @date 2024
+ */
+
 #include "rdma_common.h"
 
 void print_gid(union ibv_gid *gid) {

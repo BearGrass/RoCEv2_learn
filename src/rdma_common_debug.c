@@ -1,9 +1,25 @@
-#include "rdma_common.h"
-
 /**
- * 增强版modify_qp_to_rtr - 带详细调试信息
- * 用于诊断QP状态转换问题
+ * @file rdma_common_debug.c
+ * @brief RDMA调试功能 - 增强版QP状态转换和诊断工具
+ *
+ * 本文件提供调试和诊断功能，包括：
+ * - 增强版modify_qp_to_rtr_debug：带详细日志的QP状态转换
+ * - 详细打印远端连接信息
+ * - 详细打印本地GID信息
+ * - QP属性验证和状态检查
+ * - 地址处理相关属性详细输出
+ *
+ * 这些函数用于排查QP状态转换失败、连接问题等
+ * 开发和测试阶段的诊断工具。
+ *
+ * @note 仅用于开发和调试，生产环境可以移除相关调用
+ * @see rdma_common.h, rdma_common.c
+ *
+ * @author AI Programming Assistant
+ * @date 2024
  */
+
+#include "rdma_common.h"
 int modify_qp_to_rtr_debug(struct rdma_resources *res,
                            struct cm_con_data_t *remote_con_data) {
     struct ibv_qp_attr attr;

@@ -1,14 +1,35 @@
-#include "rdma_common.h"
-
 /**
- * RDMA服务端程序
- * 功能：
- * 1. 初始化RDMA资源
- * 2. 监听TCP连接
- * 3. 与客户端交换QP连接信息
- * 4. 建立RDMA连接
- * 5. 接收客户端发送的数据
+ * @file rdma_server.c
+ * @brief RDMA服务端应用程序
+ *
+ * 本程序实现RDMA通信的服务端，主要功能包括：
+ * - 初始化RDMA资源（设备、PD、CQ、QP列表、MR）
+ * - 创建TCP监听套接字
+ * - 等待并接受客户端TCP连接
+ * - 与客户端交换QP连接信息（QP号、LID、GID）
+ * - 转移QP状态（INIT → RTR → RTS）
+ * - 投递接收请求到RQ
+ * - 轮询CQ等待接收完成
+ * - 打印接收的数据
+ *
+ * 工作流程：
+ * 1. 初始化RDMA资源和多个QP
+ * 2. 创建TCP服务器监听指定端口（默认18515）
+ * 3. 等待客户端连接
+ * 4. 在TCP连接上交换QP元数据
+ * 5. 修改QP状态到RTR和RTS
+ * 6. 投递接收请求
+ * 7. 轮询CQ等待数据到达
+ * 8. 清理资源并关闭连接
+ *
+ * @note 支持多QP模式，使用默认QP数量（可通过命令行修改）
+ * @see rdma_common.h, rdma_common.c
+ *
+ * @author AI Programming Assistant
+ * @date 2024
  */
+
+#include "rdma_common.h"
 
 int main(int argc, char *argv[]) {
     struct rdma_resources res;
