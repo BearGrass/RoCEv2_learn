@@ -49,6 +49,11 @@
                     <h3 style="margin-bottom: 8px; color: #333;">当前步骤</h3>
                     <div id="step-info">选择场景开始</div>
                 </div>
+
+                <h3>调试信息</h3>
+                <div id="debug-panel" style="background: #222; color: #0f0; padding: 8px; border-radius: 4px; font-size: 11px; max-height: 150px; overflow-y: auto; font-family: monospace; word-wrap: break-word; white-space: pre-wrap;">
+                    等待日志...
+                </div>
             </aside>
 
             <main class="main">
@@ -76,41 +81,82 @@
     <script src="src/renderer.js"></script>
     <script src="src/animator.js"></script>
     <script>
+        // 捕获所有日志输出到页面
+        const debugPanel = document.getElementById('debug-panel');
+        const logs = [];
+
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+
+        function addLog(msg, type = 'log') {
+            logs.push(`[${type}] ${msg}`);
+            if (logs.length > 50) logs.shift(); // 只保留最近 50 条
+            debugPanel.textContent = logs.join('\n');
+            debugPanel.scrollTop = debugPanel.scrollHeight;
+        }
+
+        console.log = function(...args) {
+            const msg = args.join(' ');
+            addLog(msg, 'LOG');
+            originalLog.apply(console, args);
+        };
+
+        console.error = function(...args) {
+            const msg = args.join(' ');
+            addLog(msg, 'ERR');
+            originalError.apply(console, args);
+        };
+
+        console.warn = function(...args) {
+            const msg = args.join(' ');
+            addLog(msg, 'WARN');
+            originalWarn.apply(console, args);
+        };
+
         class SimpleApp {
             constructor() {
-                console.log('SimpleApp 初始化开始');
+                console.log('=== SimpleApp 初始化开始 ===');
                 
                 // 获取 DOM 元素
                 this.canvas = document.getElementById('visualization-canvas');
+                console.log('Canvas 元素:', this.canvas ? '✓ 找到' : '✗ 未找到');
+                
                 this.statusText = document.getElementById('status-text');
                 this.stepInfo = document.getElementById('step-info');
                 
                 // 初始化渲染器
                 try {
+                    console.log('创建 Renderer...');
                     this.renderer = new Renderer('visualization-canvas');
+                    console.log('Renderer 初始化:', this.renderer.initialized ? '✓' : '等待');
                     this.updateStatus('✓ Renderer 初始化成功', 'success');
                 } catch (e) {
+                    console.error('Renderer 初始化异常:', e.message, e.stack);
                     this.updateStatus('✗ Renderer 初始化失败: ' + e.message, 'error');
-                    console.error('Renderer error:', e);
                     return;
                 }
 
                 // 初始化动画器
                 try {
+                    console.log('创建 Animator...');
                     this.animator = new Animator(this.renderer);
+                    console.log('Animator 创建成功');
                     this.updateStatus('✓ Animator 初始化成功', 'success');
                 } catch (e) {
+                    console.error('Animator 初始化异常:', e.message, e.stack);
                     this.updateStatus('✗ Animator 初始化失败: ' + e.message, 'error');
-                    console.error('Animator error:', e);
                     return;
                 }
 
                 // 绑定事件
+                console.log('绑定事件...');
                 this.setupEvents();
+                console.log('加载默认场景...');
                 this.loadScenario('qp-creation');
                 
                 this.updateStatus('✓ 应用就绪', 'success');
-                console.log('SimpleApp 初始化完成');
+                console.log('=== SimpleApp 初始化完成 ===');
             }
 
             updateStatus(msg, type) {
@@ -121,6 +167,7 @@
             setupEvents() {
                 document.querySelectorAll('.scenario-btn').forEach(btn => {
                     btn.addEventListener('click', (e) => {
+                        console.log('场景按钮被点击:', e.target.dataset.scenario);
                         document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
                         e.target.classList.add('active');
                         this.loadScenario(e.target.dataset.scenario);
@@ -128,40 +175,43 @@
                 });
 
                 document.getElementById('btn-play').addEventListener('click', () => {
-                    console.log('播放被点击');
+                    console.log('>>> 播放按钮被点击');
+                    console.log('状态: isPlaying=' + this.animator.isPlaying + ', scenario=' + (this.animator.currentScenario ? this.animator.currentScenario.id : 'null'));
                     this.play();
                 });
 
                 document.getElementById('btn-pause').addEventListener('click', () => {
-                    console.log('暂停被点击');
+                    console.log('>>> 暂停按钮被点击');
                     this.pause();
                 });
 
                 document.getElementById('btn-reset').addEventListener('click', () => {
-                    console.log('重置被点击');
+                    console.log('>>> 重置按钮被点击');
                     this.reset();
                 });
 
                 document.getElementById('btn-prev').addEventListener('click', () => {
-                    console.log('上一步被点击');
+                    console.log('>>> 上一步按钮被点击');
                     this.prevStep();
                 });
 
                 document.getElementById('btn-next').addEventListener('click', () => {
-                    console.log('下一步被点击');
+                    console.log('>>> 下一步按钮被点击');
                     this.nextStep();
                 });
 
                 document.getElementById('speed').addEventListener('input', (e) => {
                     const speed = parseFloat(e.target.value);
+                    console.log('速度调整:', speed);
                     this.animator.setPlaybackSpeed(speed);
                     document.getElementById('speed-value').textContent = speed.toFixed(1) + 'x';
                 });
             }
 
             loadScenario(scenarioId) {
-                console.log('加载场景:', scenarioId);
+                console.log('>>> loadScenario:', scenarioId);
                 const scenario = getScenario(scenarioId);
+                console.log('获取到的场景:', scenario ? '✓' : '✗');
                 if (scenario) {
                     this.animator.setScenario(scenario);
                     this.updateUI(scenario);
@@ -170,8 +220,19 @@
             }
 
             play() {
-                console.log('播放 - 当前场景:', this.animator.currentScenario ? this.animator.currentScenario.id : 'null');
+                console.log('>>> play() 方法执行');
+                console.log('当前场景:', this.animator.currentScenario ? this.animator.currentScenario.id : '无');
+                console.log('Renderer 初始化:', this.renderer.initialized);
+                console.log('Renderer ctx:', this.renderer.ctx ? '有' : '无');
+                
+                if (!this.animator.currentScenario) {
+                    console.error('play() 失败: 没有加载场景');
+                    return;
+                }
+                
+                console.log('调用 animator.play()');
                 this.animator.play();
+                console.log('play() 调用完成, isPlaying=' + this.animator.isPlaying);
                 this.updateButtonStates();
             }
 
