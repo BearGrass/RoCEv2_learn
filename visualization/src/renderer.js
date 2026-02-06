@@ -8,8 +8,11 @@ class Renderer {
         this.canvas = document.getElementById(canvasId);
         if (!this.canvas) {
             console.error('Canvas element not found:', canvasId);
-            return;
+            throw new Error('Canvas not found: ' + canvasId);
         }
+        
+        this.ctx = null;
+        this.initialized = false;
         
         // 配置
         this.colors = {
@@ -30,30 +33,42 @@ class Renderer {
             small: '11px system-ui',
         };
         
-        // 延迟 resize 和 getContext 以确保 DOM 完全加载
-        window.addEventListener('load', () => {
+        // 立即初始化一次
+        this.initializeCanvas();
+        
+        // 监听 resize 事件
+        window.addEventListener('resize', () => this.resizeCanvas());
+    }
+
+    initializeCanvas() {
+        if (this.ctx) return; // 已初始化
+        
+        try {
             this.resizeCanvas();
             this.ctx = this.canvas.getContext('2d');
-            console.log('Canvas context initialized');
-        });
-        window.addEventListener('resize', () => this.resizeCanvas());
-        
-        // 初始化 canvas 大小和上下文
-        setTimeout(() => {
-            this.resizeCanvas();
-            if (!this.ctx) {
-                this.ctx = this.canvas.getContext('2d');
-                console.log('Canvas context initialized (timeout)');
+            if (this.ctx) {
+                this.initialized = true;
+                console.log('✓ Canvas 已初始化，尺寸:', this.canvas.width, 'x', this.canvas.height);
             }
-        }, 100);
+        } catch (e) {
+            console.error('Canvas 初始化失败:', e);
+        }
+    }
+
+    ensureInitialized() {
+        if (!this.ctx) {
+            this.initializeCanvas();
+        }
+        return this.ctx !== null;
     }
 
     resizeCanvas() {
+        if (!this.canvas || !this.canvas.parentElement) return;
+        
         const rect = this.canvas.parentElement.getBoundingClientRect();
         if (rect.width > 0 && rect.height > 0) {
             this.canvas.width = rect.width;
             this.canvas.height = rect.height;
-            console.log('Canvas resized to:', rect.width, 'x', rect.height);
         }
     }
 
@@ -67,6 +82,11 @@ class Renderer {
     }
 
     drawQPCreationFlow(scenario) {
+        if (!this.ensureInitialized()) {
+            console.error('Canvas not properly initialized');
+            return;
+        }
+        
         this.clear();
         const steps = scenario.steps;
         const totalSteps = steps.length;
@@ -110,6 +130,11 @@ class Renderer {
     }
 
     drawDataPlaneFlow(scenario) {
+        if (!this.ensureInitialized()) {
+            console.error('Canvas not properly initialized');
+            return;
+        }
+        
         this.clear();
         const steps = scenario.steps;
         const currentIndex = scenario.currentStepIndex;

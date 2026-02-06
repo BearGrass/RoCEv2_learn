@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RDMA 可视化 - 简化版</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui; background: linear-gradient(135deg, #667eea, #764ba2); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; height: calc(100vh - 40px); display: flex; flex-direction: column; }
+        header { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 20px; text-align: center; }
+        header h1 { font-size: 24px; margin-bottom: 5px; }
+        .content { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 280px; background: #f5f5f5; border-right: 1px solid #ddd; padding: 20px; overflow-y: auto; }
+        .sidebar h3 { color: #667eea; font-size: 14px; margin-bottom: 12px; text-transform: uppercase; }
+        .btn { padding: 10px 16px; border: none; border-radius: 4px; background: #667eea; color: white; cursor: pointer; font-weight: 500; transition: all 0.3s; display: block; width: 100%; margin-bottom: 8px; text-align: left; }
+        .btn:hover { background: #5568d3; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(102,126,234,0.4); }
+        .btn.active { background: #764ba2; }
+        .info-panel { background: white; border: 1px solid #ddd; border-radius: 4px; padding: 12px; margin-bottom: 15px; font-size: 13px; color: #666; }
+        .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        #canvas-container { flex: 1; background: #fafafa; display: flex; align-items: center; justify-content: center; position: relative; }
+        #visualization-canvas { background: white; box-shadow: 0 0 10px rgba(0,0,0,0.05); }
+        .controls { background: #f0f0f0; border-top: 1px solid #ddd; padding: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .controls .btn { width: auto; margin: 0; }
+        .speed-control { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+        #status { background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 8px 12px; font-size: 12px; margin-bottom: 12px; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>RDMA RoCEv2 通信流程可视化</h1>
+            <p style="font-size: 14px; opacity: 0.9;">Queue Pair 创建与数据面流程演示</p>
+        </header>
+
+        <div class="content">
+            <aside class="sidebar">
+                <div id="status">
+                    <span id="status-text">初始化中...</span>
+                </div>
+
+                <h3>演示场景</h3>
+                <button class="btn scenario-btn active" data-scenario="qp-creation">QP创建流程</button>
+                <button class="btn scenario-btn" data-scenario="data-plane">数据面流程</button>
+
+                <div class="info-panel">
+                    <h3 style="margin-bottom: 8px; color: #333;">当前步骤</h3>
+                    <div id="step-info">选择场景开始</div>
+                </div>
+            </aside>
+
+            <main class="main">
+                <div id="canvas-container">
+                    <canvas id="visualization-canvas"></canvas>
+                </div>
+
+                <div class="controls">
+                    <button class="btn" id="btn-play">▶ 播放</button>
+                    <button class="btn" id="btn-pause" disabled>⏸ 暂停</button>
+                    <button class="btn" id="btn-reset">↻ 重置</button>
+                    <button class="btn" id="btn-prev">⏮ 上一步</button>
+                    <button class="btn" id="btn-next">下一步 ⏭</button>
+                    <div class="speed-control">
+                        <label>速度:</label>
+                        <input type="range" id="speed" min="0.5" max="2" step="0.1" value="1" style="width: 80px;">
+                        <span id="speed-value">1.0x</span>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="src/models.js"></script>
+    <script src="src/renderer.js"></script>
+    <script src="src/animator.js"></script>
+    <script>
+        class SimpleApp {
+            constructor() {
+                console.log('SimpleApp 初始化开始');
+                
+                // 获取 DOM 元素
+                this.canvas = document.getElementById('visualization-canvas');
+                this.statusText = document.getElementById('status-text');
+                this.stepInfo = document.getElementById('step-info');
+                
+                // 初始化渲染器
+                try {
+                    this.renderer = new Renderer('visualization-canvas');
+                    this.updateStatus('✓ Renderer 初始化成功', 'success');
+                } catch (e) {
+                    this.updateStatus('✗ Renderer 初始化失败: ' + e.message, 'error');
+                    console.error('Renderer error:', e);
+                    return;
+                }
+
+                // 初始化动画器
+                try {
+                    this.animator = new Animator(this.renderer);
+                    this.updateStatus('✓ Animator 初始化成功', 'success');
+                } catch (e) {
+                    this.updateStatus('✗ Animator 初始化失败: ' + e.message, 'error');
+                    console.error('Animator error:', e);
+                    return;
+                }
+
+                // 绑定事件
+                this.setupEvents();
+                this.loadScenario('qp-creation');
+                
+                this.updateStatus('✓ 应用就绪', 'success');
+                console.log('SimpleApp 初始化完成');
+            }
+
+            updateStatus(msg, type) {
+                this.statusText.textContent = msg;
+                this.statusText.className = type;
+            }
+
+            setupEvents() {
+                document.querySelectorAll('.scenario-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
+                        e.target.classList.add('active');
+                        this.loadScenario(e.target.dataset.scenario);
+                    });
+                });
+
+                document.getElementById('btn-play').addEventListener('click', () => {
+                    console.log('播放被点击');
+                    this.play();
+                });
+
+                document.getElementById('btn-pause').addEventListener('click', () => {
+                    console.log('暂停被点击');
+                    this.pause();
+                });
+
+                document.getElementById('btn-reset').addEventListener('click', () => {
+                    console.log('重置被点击');
+                    this.reset();
+                });
+
+                document.getElementById('btn-prev').addEventListener('click', () => {
+                    console.log('上一步被点击');
+                    this.prevStep();
+                });
+
+                document.getElementById('btn-next').addEventListener('click', () => {
+                    console.log('下一步被点击');
+                    this.nextStep();
+                });
+
+                document.getElementById('speed').addEventListener('input', (e) => {
+                    const speed = parseFloat(e.target.value);
+                    this.animator.setPlaybackSpeed(speed);
+                    document.getElementById('speed-value').textContent = speed.toFixed(1) + 'x';
+                });
+            }
+
+            loadScenario(scenarioId) {
+                console.log('加载场景:', scenarioId);
+                const scenario = getScenario(scenarioId);
+                if (scenario) {
+                    this.animator.setScenario(scenario);
+                    this.updateUI(scenario);
+                    this.updateButtonStates();
+                }
+            }
+
+            play() {
+                console.log('播放 - 当前场景:', this.animator.currentScenario ? this.animator.currentScenario.id : 'null');
+                this.animator.play();
+                this.updateButtonStates();
+            }
+
+            pause() {
+                this.animator.pause();
+                this.updateButtonStates();
+            }
+
+            reset() {
+                this.animator.reset();
+                this.updateUI(this.animator.currentScenario);
+                this.updateButtonStates();
+            }
+
+            nextStep() {
+                this.animator.nextStep();
+                this.updateUI(this.animator.currentScenario);
+                this.updateButtonStates();
+            }
+
+            prevStep() {
+                this.animator.prevStep();
+                this.updateUI(this.animator.currentScenario);
+                this.updateButtonStates();
+            }
+
+            updateUI(scenario) {
+                if (!scenario) return;
+                const step = scenario.getCurrentStep();
+                if (step) {
+                    const html = `<strong>${step.name}</strong><p style="margin-top: 8px; color: #666;">${step.description}</p>`;
+                    this.stepInfo.innerHTML = html;
+                }
+            }
+
+            updateButtonStates() {
+                const isPlaying = this.animator.isPlaying;
+                const scenario = this.animator.currentScenario;
+                
+                document.getElementById('btn-play').disabled = isPlaying;
+                document.getElementById('btn-pause').disabled = !isPlaying;
+                document.getElementById('btn-next').disabled = isPlaying || !scenario || scenario.currentStepIndex >= scenario.steps.length - 1;
+                document.getElementById('btn-prev').disabled = isPlaying || !scenario || scenario.currentStepIndex === 0;
+            }
+        }
+
+        // 页面加载后初始化
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM 加载完成');
+            window.app = new SimpleApp();
+        });
+    </script>
+</body>
+</html>
