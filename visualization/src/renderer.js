@@ -122,13 +122,27 @@ class Renderer {
                 if (step.interaction.type === 'memory') {
                     // 与内存交互
                     const memoryX = 125; // 左侧内存框中心
-                    const memoryY = 250;
-                    this.drawInteractionArrow(x - 25, y, memoryX, memoryY, '#0088ff', step.interaction.label);
+                    const memoryY = 150 + (Math.floor(i/2)) * 60; // 根据行调整高度
+                    this.drawInteractionArrow(x - 30, y, memoryX, memoryY, '#0099ff', step.interaction.label);
+                    
+                    // 添加方向标签
+                    if (step.interaction.direction === 'write') {
+                        this.drawDirectionLabel(memoryX - 40, memoryY + 30, '写入', '#00d4ff');
+                    } else {
+                        this.drawDirectionLabel(memoryX - 40, memoryY + 30, '读取', '#00ff88');
+                    }
                 } else if (step.interaction.type === 'driver') {
                     // 与驱动交互
                     const driverX = this.canvas.width - 125; // 右侧驱动框中心
-                    const driverY = 250 + (i % 3) * 50;
-                    this.drawInteractionArrow(x + 25, y, driverX, driverY, '#00ff88', step.interaction.label);
+                    const driverY = 150 + (Math.floor(i/2)) * 60; // 根据行调整高度
+                    this.drawInteractionArrow(x + 30, y, driverX, driverY, '#00ff88', step.interaction.label);
+                    
+                    // 添加方向标签
+                    if (step.interaction.direction === 'write') {
+                        this.drawDirectionLabel(driverX + 40, driverY + 30, '写入', '#00d4ff');
+                    } else {
+                        this.drawDirectionLabel(driverX + 40, driverY + 30, '读取', '#00ff88');
+                    }
                 }
             }
 
@@ -143,6 +157,18 @@ class Renderer {
         }
 
         // 步骤信息已移到侧边栏，不在Canvas上显示
+    }
+
+    drawDirectionLabel(x, y, text, color) {
+        // 绘制方向标签
+        this.ctx.fillStyle = color;
+        this.ctx.font = 'bold 10px "Courier New", monospace';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.shadowColor = '#000000';
+        this.ctx.shadowBlur = 2;
+        this.ctx.fillText(text, x, y);
+        this.ctx.shadowBlur = 0;
     }
 
     drawDataPlaneFlow(scenario) {
@@ -519,14 +545,26 @@ class Renderer {
         this.ctx.closePath();
         this.ctx.fill();
 
-        // 标签
+        // 标签背景盒子和文字
         if (label) {
-            this.ctx.fillStyle = color;
-            this.ctx.font = 'bold 11px "Courier New", monospace';
-            this.ctx.textAlign = 'center';
-            const midX = (fromX + toX) / 2 + 20;
+            const midX = (fromX + toX) / 2;
             const midY = (fromY + toY) / 2;
-            this.ctx.fillText(label, midX, midY);
+            
+            // 标签背景
+            this.ctx.fillStyle = 'rgba(10, 14, 39, 0.9)';
+            this.ctx.strokeStyle = color;
+            this.ctx.lineWidth = 1;
+            const boxWidth = label.length * 6 + 8;
+            const boxHeight = 18;
+            this.ctx.fillRect(midX - boxWidth/2, midY - 15, boxWidth, boxHeight);
+            this.ctx.strokeRect(midX - boxWidth/2, midY - 15, boxWidth, boxHeight);
+            
+            // 文字
+            this.ctx.fillStyle = color;
+            this.ctx.font = 'bold 12px "Courier New", monospace';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText(label, midX, midY - 6);
         }
     }
 }

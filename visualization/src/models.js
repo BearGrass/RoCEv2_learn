@@ -79,7 +79,7 @@ const QPCreationSteps = [
         '申请保护域，用于管理RDMA资源的访问权限',
         new CodeMapping('src/rdma_common.c', 110, 125, 'pd = ibv_alloc_pd(ib_ctx);'),
         800,
-        { type: 'memory', label: '规划内存块', direction: 'write' }
+        { type: 'memory', label: 'ALLOC\nPD', direction: 'write' }
     ),
     new RDMAStep(
         'qp-2-cq',
@@ -87,7 +87,7 @@ const QPCreationSteps = [
         '创建完成队列用于接收工作请求完成通知',
         new CodeMapping('src/rdma_common.c', 140, 165, 'cq = ibv_create_cq(ib_ctx, cq_size, NULL, NULL, 0);'),
         800,
-        { type: 'driver', label: '分配队列资源', direction: 'read' }
+        { type: 'driver', label: 'CREATE\nCQ', direction: 'read' }
     ),
     new RDMAStep(
         'qp-3-mr',
@@ -95,7 +95,7 @@ const QPCreationSteps = [
         '注册应用内存区域，使RDMA硬件可以直接访问',
         new CodeMapping('src/rdma_common.c', 175, 195, 'mr = ibv_reg_mr(pd, buf_ptr, buf_size, ...);'),
         800,
-        { type: 'memory', label: '标记写入权限', direction: 'write' }
+        { type: 'memory', label: 'REGISTER\nMR', direction: 'write' }
     ),
     new RDMAStep(
         'qp-4-create',
@@ -103,7 +103,7 @@ const QPCreationSteps = [
         '创建Queue Pair，用于点对点的RDMA通信',
         new CodeMapping('src/rdma_common_qp.c', 50, 95, 'qp = ibv_create_qp(pd, &qp_init_attr);'),
         1000,
-        { type: 'driver', label: '初始化QP资源', direction: 'read' }
+        { type: 'driver', label: 'CREATE\nQP', direction: 'read' }
     ),
     new RDMAStep(
         'qp-5-init',
@@ -111,7 +111,7 @@ const QPCreationSteps = [
         '将QP从重置状态转换到初始化状态',
         new CodeMapping('src/rdma_common_qp.c', 115, 145, 'ibv_modify_qp(qp, &attr, IBV_QP_STATE);'),
         1000,
-        { type: 'driver', label: '配置QP状态', direction: 'write' }
+        { type: 'driver', label: 'SET\nINIT', direction: 'write' }
     ),
     new RDMAStep(
         'qp-6-rtr',
@@ -119,7 +119,7 @@ const QPCreationSteps = [
         '将QP转换到就绪接收(Ready to Receive)状态',
         new CodeMapping('src/rdma_common_qp.c', 165, 200, 'modify_qp_to_rtr(...); // RTR requires GID info'),
         1200,
-        { type: 'driver', label: '启用接收', direction: 'write' }
+        { type: 'driver', label: 'SET\nRTR', direction: 'write' }
     ),
     new RDMAStep(
         'qp-7-rts',
@@ -127,7 +127,7 @@ const QPCreationSteps = [
         '将QP转换到就绪发送(Ready to Send)状态，可以发送和接收数据',
         new CodeMapping('src/rdma_common_qp.c', 220, 250, 'modify_qp_to_rts(...);'),
         1000,
-        { type: 'driver', label: '启用发送', direction: 'write' }
+        { type: 'driver', label: 'SET\nRTS', direction: 'write' }
     ),
     new RDMAStep(
         'qp-8-complete',
@@ -135,7 +135,7 @@ const QPCreationSteps = [
         'Queue Pair 已准备好进行数据通信',
         new CodeMapping('src/rdma_common.c', 300, 320, '// QP is now ready for data transfer'),
         600,
-        { type: 'memory', label: '就绪状态', direction: 'read' }
+        { type: 'memory', label: 'READY', direction: 'read' }
     ),
 ];
 
@@ -147,7 +147,7 @@ const DataPlaneSteps = [
         '准备发送工作请求(Work Request)，包括数据缓冲区和目标地址信息',
         new CodeMapping('src/rdma_common_net.c', 60, 90, 'struct ibv_send_wr sr; sr.wr.rdma.remote_addr = ...'),
         800,
-        { role: 'client', type: 'control', label: 'CTRL' }
+        { role: 'client', type: 'control', label: 'PREP' }
     ),
     new RDMAStep(
         'dp-2-post-send',
@@ -155,7 +155,7 @@ const DataPlaneSteps = [
         '将发送工作请求投递到SQ(Send Queue)',
         new CodeMapping('src/rdma_common_net.c', 100, 120, 'ibv_post_send(qp, &sr, &bad_wr);'),
         800,
-        { role: 'client', type: 'control', label: 'CTRL' }
+        { role: 'client', type: 'control', label: 'SEND' }
     ),
     new RDMAStep(
         'dp-3-rdma-write',
@@ -163,7 +163,7 @@ const DataPlaneSteps = [
         '网卡直接写入远端内存，不需要远端CPU干预',
         new CodeMapping('docs/technical/ARCHITECTURE.md', 45, 65, '// RDMA Write: Direct memory write'),
         1500,
-        { role: 'client', type: 'data', label: 'DATA' }
+        { role: 'client', type: 'data', label: 'WRITE' }
     ),
     new RDMAStep(
         'dp-4-completion',
@@ -171,7 +171,7 @@ const DataPlaneSteps = [
         '本地NIC生成工作完成(Work Completion)通知',
         new CodeMapping('src/rdma_common_net.c', 200, 220, 'struct ibv_wc wc; ibv_poll_cq(cq, 1, &wc);'),
         1000,
-        { role: 'client', type: 'ack', label: 'ACK' }
+        { role: 'client', type: 'ack', label: 'DONE' }
     ),
     new RDMAStep(
         'dp-5-remote-ready',
@@ -179,7 +179,7 @@ const DataPlaneSteps = [
         '远端内存中已收到数据，远端应用可以读取',
         new CodeMapping('src/rdma_client.c', 280, 300, '// Remote data is now available in memory'),
         800,
-        { role: 'server', type: 'data', label: 'DATA' }
+        { role: 'server', type: 'data', label: 'RECV' }
     ),
     new RDMAStep(
         'dp-6-recv-prep',
@@ -187,7 +187,7 @@ const DataPlaneSteps = [
         '准备接收工作请求，设置接收缓冲区',
         new CodeMapping('src/rdma_common_net.c', 320, 340, 'struct ibv_recv_wr rr; rr.sg_list = ...;'),
         800,
-        { role: 'server', type: 'control', label: 'CTRL' }
+        { role: 'server', type: 'control', label: 'PREP' }
     ),
     new RDMAStep(
         'dp-7-post-recv',
@@ -195,7 +195,7 @@ const DataPlaneSteps = [
         '将接收工作请求投递到RQ(Receive Queue)',
         new CodeMapping('src/rdma_common_net.c', 350, 370, 'ibv_post_recv(qp, &rr, &bad_wr);'),
         800,
-        { role: 'server', type: 'control', label: 'CTRL' }
+        { role: 'server', type: 'control', label: 'POLL' }
     ),
     new RDMAStep(
         'dp-8-complete',
