@@ -170,16 +170,30 @@ class Renderer {
     }
 
     drawStepNode(x, y, radius, step, isActive, isCompleted) {
-        // 背景圆
+        // 背景圆 - 添加渐变和增强发光
+        const gradient = this.ctx.createRadialGradient(x - radius/3, y - radius/3, 0, x, y, radius);
+        
         if (isActive) {
-            this.ctx.fillStyle = this.colors.primary;
+            // 活跃状态：青色渐变+强发光
+            gradient.addColorStop(0, '#00e6ff');
+            gradient.addColorStop(1, '#00a8d4');
+            this.ctx.fillStyle = gradient;
             this.ctx.shadowColor = this.colors.primary;
-            this.ctx.shadowBlur = 20;
+            this.ctx.shadowBlur = 30;
+            this.ctx.shadowOffsetX = 0;
+            this.ctx.shadowOffsetY = 0;
         } else if (isCompleted) {
-            this.ctx.fillStyle = this.colors.success;
-            this.ctx.shadowColor = 'transparent';
+            // 完成状态：渐变绿青
+            gradient.addColorStop(0, '#00d4ff');
+            gradient.addColorStop(1, '#0088cc');
+            this.ctx.fillStyle = gradient;
+            this.ctx.shadowColor = 'rgba(0, 212, 255, 0.3)';
+            this.ctx.shadowBlur = 15;
         } else {
-            this.ctx.fillStyle = this.colors.neutral;
+            // 未开始状态：暗蓝渐变
+            gradient.addColorStop(0, '#0055aa');
+            gradient.addColorStop(1, '#002255');
+            this.ctx.fillStyle = gradient;
             this.ctx.shadowColor = 'transparent';
         }
 
@@ -187,12 +201,21 @@ class Renderer {
         this.ctx.arc(x, y, radius, 0, 2 * Math.PI);
         this.ctx.fill();
 
+        // 内圈光晕（仅活跃节点）
+        if (isActive) {
+            this.ctx.strokeStyle = 'rgba(0, 230, 255, 0.6)';
+            this.ctx.lineWidth = 2;
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, radius + 5, 0, 2 * Math.PI);
+            this.ctx.stroke();
+        }
+
         // 边框
         if (isActive) {
-            this.ctx.strokeStyle = this.colors.secondary;
+            this.ctx.strokeStyle = '#ffffff';
             this.ctx.lineWidth = 4;
         } else {
-            this.ctx.strokeStyle = '#666666';
+            this.ctx.strokeStyle = '#0088ff';
             this.ctx.lineWidth = 3;
         }
         this.ctx.stroke();
@@ -200,12 +223,17 @@ class Renderer {
         // 重置阴影
         this.ctx.shadowColor = 'transparent';
 
-        // 文字（步骤号）
-        this.ctx.fillStyle = 'white';
-        this.ctx.font = 'bold 16px system-ui';
+        // 文字（步骤号）- 增大且改善对比
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = 'bold 20px "Courier New", monospace';
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
         const stepNum = step.id.split('-')[1] || '?';
+        
+        // 添加文字阴影以提高可读性
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        this.ctx.fillText(stepNum, x + 1, y + 1);
+        this.ctx.fillStyle = '#ffffff';
         this.ctx.fillText(stepNum, x, y);
 
         // 步骤名称（在节点下方）
@@ -218,43 +246,71 @@ class Renderer {
         const headlen = 15;
         const angle = Math.atan2(toY - fromY, toX - fromX);
 
-        // 连线
+        // 连线 - 添加阴影和渐变效果
         this.ctx.strokeStyle = color;
         this.ctx.lineWidth = 4;
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+        
+        // 添加发光阴影
+        this.ctx.shadowColor = color;
+        this.ctx.shadowBlur = 10;
+        
         this.ctx.beginPath();
         this.ctx.moveTo(fromX, fromY);
         this.ctx.lineTo(toX, toY);
         this.ctx.stroke();
 
-        // 箭头头
+        // 关闭阴影
+        this.ctx.shadowColor = 'transparent';
+        this.ctx.shadowBlur = 0;
+
+        // 箭头头 - 增强视觉
         this.ctx.fillStyle = color;
         this.ctx.beginPath();
         this.ctx.moveTo(toX, toY);
         this.ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
         this.ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
         this.ctx.closePath();
+        
+        // 箭头发光
+        this.ctx.shadowColor = color;
+        this.ctx.shadowBlur = 8;
+        this.ctx.fill();
+        this.ctx.shadowColor = 'transparent';
         this.ctx.fill();
     }
 
     drawTitle(text) {
-        // 添加发光效果
-        this.ctx.fillStyle = 'rgba(0, 255, 136, 0.2)';
+        // 添加发光背景和渐变效果
         this.ctx.font = this.fonts.title;
         this.ctx.textAlign = 'left';
         
-        // 绘制发光背景
-        this.ctx.fillText(text, 30, 50);
+        // 背景矩形 - 带渐变
+        const gradient = this.ctx.createLinearGradient(30, 40, 400, 40);
+        gradient.addColorStop(0, 'rgba(0, 212, 255, 0.15)');
+        gradient.addColorStop(1, 'rgba(0, 136, 255, 0.05)');
+        this.ctx.fillStyle = gradient;
+        this.ctx.fillRect(20, 35, 400, 40);
+        
+        // 背景边框
+        this.ctx.strokeStyle = this.colors.primary;
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(20, 35, 400, 40);
         
         // 绘制主文本
         this.ctx.fillStyle = this.colors.text;
-        this.ctx.fillText(text, 30, 50);
+        this.ctx.shadowColor = this.colors.primary;
+        this.ctx.shadowBlur = 15;
+        this.ctx.fillText(text, 30, 60);
+        this.ctx.shadowColor = 'transparent';
         
-        // 添加下划线
+        // 添加装饰线
         this.ctx.strokeStyle = this.colors.primary;
         this.ctx.lineWidth = 2;
         this.ctx.beginPath();
-        this.ctx.moveTo(30, 55);
-        this.ctx.lineTo(300, 55);
+        this.ctx.moveTo(20, 75);
+        this.ctx.lineTo(420, 75);
         this.ctx.stroke();
     }
 
