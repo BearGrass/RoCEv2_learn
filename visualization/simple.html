@@ -210,12 +210,26 @@
 
             loadScenario(scenarioId) {
                 console.log('>>> loadScenario:', scenarioId);
-                const scenario = getScenario(scenarioId);
-                console.log('获取到的场景:', scenario ? '✓' : '✗');
-                if (scenario) {
+                try {
+                    console.log('调用 getScenario()...');
+                    const scenario = getScenario(scenarioId);
+                    console.log('获取到的场景:', scenario ? '✓' : '✗ (null)');
+                    
+                    if (!scenario) {
+                        console.error('getScenario 返回 null, 检查 SCENARIOS:', typeof SCENARIOS);
+                        return;
+                    }
+                    
+                    console.log('场景对象:', scenario.id, '步骤数:', scenario.steps ? scenario.steps.length : '无');
+                    console.log('调用 animator.setScenario()...');
                     this.animator.setScenario(scenario);
+                    console.log('setScenario 完成, animator.currentScenario:', this.animator.currentScenario ? '有' : '无');
+                    
                     this.updateUI(scenario);
                     this.updateButtonStates();
+                    console.log('loadScenario 完成');
+                } catch (e) {
+                    console.error('loadScenario 异常:', e.message, e.stack);
                 }
             }
 

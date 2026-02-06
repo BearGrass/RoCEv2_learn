@@ -190,20 +190,28 @@ const DataPlaneSteps = [
     ),
 ];
 
-// ============ 场景定义 ============
-const QPCreationScenario = new Scenario(
-    'qp-creation',
-    'QP创建流程',
-    '演示从受保护域、完成队列到Queue Pair创建的完整过程',
-    QPCreationSteps
-);
+// ============ 场景定义（作为类工厂） ============
+class QPCreationScenario extends Scenario {
+    constructor() {
+        super(
+            'qp-creation',
+            'QP创建流程',
+            '演示从受保护域、完成队列到Queue Pair创建的完整过程',
+            QPCreationSteps
+        );
+    }
+}
 
-const DataPlaneScenario = new Scenario(
-    'data-plane',
-    '数据面流程',
-    '演示RDMA Write单向通信中从发送到接收的完整数据面流程',
-    DataPlaneSteps
-);
+class DataPlaneScenario extends Scenario {
+    constructor() {
+        super(
+            'data-plane',
+            '数据面流程',
+            '演示RDMA Write单向通信中从发送到接收的完整数据面流程',
+            DataPlaneSteps
+        );
+    }
+}
 
 // 场景映射
 const SCENARIOS = {
