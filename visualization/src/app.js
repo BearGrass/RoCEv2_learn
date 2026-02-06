@@ -39,6 +39,14 @@ class RDMAVisualizationApp {
         // 信息面板
         this.stepInfo = document.getElementById('step-info');
         this.codeMapping = document.getElementById('code-mapping');
+        
+        // 调试输出
+        console.log('Elements initialized:', {
+            btnPlay: !!this.btnPlay,
+            btnPause: !!this.btnPause,
+            scenarioBtns: this.scenarioBtns.length,
+            canvas: !!this.renderer.canvas
+        });
     }
 
     setupEventListeners() {
@@ -120,26 +128,35 @@ class RDMAVisualizationApp {
     }
 
     play() {
+        console.log('Play button clicked');
+        if (!this.animator.currentScenario) {
+            console.warn('No scenario loaded');
+            return;
+        }
         this.animator.play();
         this.updateButtonStates();
     }
 
     pause() {
+        console.log('Pause button clicked');
         this.animator.pause();
         this.updateButtonStates();
     }
 
     reset() {
+        console.log('Reset button clicked');
         this.animator.reset();
         this.updateButtonStates();
     }
 
     nextStep() {
+        console.log('Next step button clicked');
         this.animator.nextStep();
         this.updateButtonStates();
     }
 
     prevStep() {
+        console.log('Previous step button clicked');
         this.animator.prevStep();
         this.updateButtonStates();
     }
