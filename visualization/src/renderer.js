@@ -6,7 +6,10 @@
 class Renderer {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
-        this.ctx = this.canvas.getContext('2d');
+        if (!this.canvas) {
+            console.error('Canvas element not found:', canvasId);
+            return;
+        }
         
         // 配置
         this.colors = {
@@ -27,12 +30,22 @@ class Renderer {
             small: '11px system-ui',
         };
         
-        // 延迟 resize 以确保 DOM 完全加载
-        window.addEventListener('load', () => this.resizeCanvas());
+        // 延迟 resize 和 getContext 以确保 DOM 完全加载
+        window.addEventListener('load', () => {
+            this.resizeCanvas();
+            this.ctx = this.canvas.getContext('2d');
+            console.log('Canvas context initialized');
+        });
         window.addEventListener('resize', () => this.resizeCanvas());
         
-        // 初始化 canvas 大小
-        setTimeout(() => this.resizeCanvas(), 100);
+        // 初始化 canvas 大小和上下文
+        setTimeout(() => {
+            this.resizeCanvas();
+            if (!this.ctx) {
+                this.ctx = this.canvas.getContext('2d');
+                console.log('Canvas context initialized (timeout)');
+            }
+        }, 100);
     }
 
     resizeCanvas() {
@@ -40,10 +53,15 @@ class Renderer {
         if (rect.width > 0 && rect.height > 0) {
             this.canvas.width = rect.width;
             this.canvas.height = rect.height;
+            console.log('Canvas resized to:', rect.width, 'x', rect.height);
         }
     }
 
     clear() {
+        if (!this.ctx) {
+            console.warn('Canvas context not initialized');
+            return;
+        }
         this.ctx.fillStyle = this.colors.background;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
