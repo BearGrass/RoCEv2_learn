@@ -81,6 +81,12 @@
     <script src="src/renderer.js"></script>
     <script src="src/animator.js"></script>
     <script>
+        // 验证 models.js 已加载
+        console.log('检查全局函数...');
+        console.log('getScenario 类型:', typeof getScenario);
+        console.log('SCENARIOS 类型:', typeof SCENARIOS);
+        console.log('SCENARIOS 内容:', SCENARIOS);
+        
         // 捕获所有日志输出到页面
         const debugPanel = document.getElementById('debug-panel');
         const logs = [];
