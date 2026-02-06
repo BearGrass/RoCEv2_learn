@@ -117,6 +117,21 @@ class Renderer {
             // 绘制节点
             this.drawStepNode(x, y, 35, step, i === currentIndex, i < currentIndex);
 
+            // 绘制与组件的交互线和标签
+            if (step.interaction) {
+                if (step.interaction.type === 'memory') {
+                    // 与内存交互
+                    const memoryX = 125; // 左侧内存框中心
+                    const memoryY = 250;
+                    this.drawInteractionArrow(x - 25, y, memoryX, memoryY, '#0088ff', step.interaction.label);
+                } else if (step.interaction.type === 'driver') {
+                    // 与驱动交互
+                    const driverX = this.canvas.width - 125; // 右侧驱动框中心
+                    const driverY = 250 + (i % 3) * 50;
+                    this.drawInteractionArrow(x + 25, y, driverX, driverY, '#00ff88', step.interaction.label);
+                }
+            }
+
             // 绘制连接线
             if (i < steps.length - 1) {
                 const nextCol = (i + 1) % cols;
@@ -124,15 +139,6 @@ class Renderer {
                 const nextX = padding + nextCol * cellWidth + cellWidth / 2;
                 const nextY = 100 + nextRow * cellHeight + cellHeight / 2;
                 this.drawArrow(x, y + 40, nextX, nextY - 40, step.isCompleted ? this.colors.success : this.colors.neutral);
-            }
-            
-            // 绘制与组件的交互线
-            if (i % 2 === 0) {
-                // 左侧交互（内存）
-                this.drawInteractionArrow(x - 30, y, 50, 100, '#0088ff', 'write');
-            } else {
-                // 右侧交互（驱动）
-                this.drawInteractionArrow(x + 30, y, this.canvas.width - 200, 100, '#00ff88', 'read');
             }
         }
 
@@ -184,15 +190,28 @@ class Renderer {
             // 步骤节点在时间线上
             this.drawStepNode(stepX, timelineY, 30, step, isActive, isCompleted);
 
-            // 根据步骤类型绘制交互箭头
-            let direction = i % 2; // 0: client->server, 1: server->client
-            
-            if (direction === 0) {
-                // Client 发送数据到 Server
-                this.drawDataFlowArrow(clientX + boxWidth, 100 + (i+1)*40, stepX - 30, timelineY - 20, '#00d4ff', 'SEND');
-            } else {
-                // Server 响应回 Client
-                this.drawDataFlowArrow(serverX, 100 + (i+1)*40, stepX + 30, timelineY + 20, '#00ff88', 'RESPONSE');
+            // 根据交互信息绘制交互箭头
+            if (step.interaction) {
+                const role = step.interaction.role;
+                const msgType = step.interaction.type; // 'control', 'data', 'ack'
+                
+                // 根据消息类型选择颜色
+                let color = '#0088ff'; // control: 蓝色
+                if (msgType === 'data') color = '#00ff88'; // data: 绿色
+                if (msgType === 'ack') color = '#ff6644'; // ack: 橙红色
+
+                // 根据角色（client/server）和消息类型生成标签
+                let label = msgType.toUpperCase();
+                
+                if (role === 'client') {
+                    // Client 发送数据到 Server
+                    const arrowY = timelineY - 40;
+                    this.drawDataFlowArrow(clientX + boxWidth + 20, arrowY, serverX - 20, arrowY, color, label);
+                } else if (role === 'server') {
+                    // Server 响应回 Client
+                    const arrowY = timelineY + 40;
+                    this.drawDataFlowArrow(serverX - 20, arrowY, clientX + boxWidth + 20, arrowY, color, label);
+                }
             }
         }
 
