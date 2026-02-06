@@ -8,12 +8,12 @@ SRC_DIR = src
 BUILD_DIR = build
 
 # 源文件
-COMMON_SRC = $(SRC_DIR)/rdma_common.c
+COMMON_SRC = $(SRC_DIR)/rdma_common.c $(SRC_DIR)/rdma_common_utils.c $(SRC_DIR)/rdma_common_net.c $(SRC_DIR)/rdma_common_qp.c
 SERVER_SRC = $(SRC_DIR)/rdma_server.c
 CLIENT_SRC = $(SRC_DIR)/rdma_client.c
 
 # 目标文件
-COMMON_OBJ = $(BUILD_DIR)/rdma_common.o
+COMMON_OBJ = $(BUILD_DIR)/rdma_common.o $(BUILD_DIR)/rdma_common_utils.o $(BUILD_DIR)/rdma_common_net.o $(BUILD_DIR)/rdma_common_qp.o
 SERVER_OBJ = $(BUILD_DIR)/rdma_server.o
 CLIENT_OBJ = $(BUILD_DIR)/rdma_client.o
 
@@ -29,8 +29,17 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 # 编译公共对象文件
-$(COMMON_OBJ): $(COMMON_SRC) $(SRC_DIR)/rdma_common.h
-	$(CC) $(CFLAGS) -c $(COMMON_SRC) -o $(COMMON_OBJ)
+$(BUILD_DIR)/rdma_common.o: $(SRC_DIR)/rdma_common.c $(SRC_DIR)/rdma_common.h
+	$(CC) $(CFLAGS) -c $(SRC_DIR)/rdma_common.c -o $(BUILD_DIR)/rdma_common.o
+
+$(BUILD_DIR)/rdma_common_utils.o: $(SRC_DIR)/rdma_common_utils.c $(SRC_DIR)/rdma_common.h
+	$(CC) $(CFLAGS) -c $(SRC_DIR)/rdma_common_utils.c -o $(BUILD_DIR)/rdma_common_utils.o
+
+$(BUILD_DIR)/rdma_common_net.o: $(SRC_DIR)/rdma_common_net.c $(SRC_DIR)/rdma_common.h
+	$(CC) $(CFLAGS) -c $(SRC_DIR)/rdma_common_net.c -o $(BUILD_DIR)/rdma_common_net.o
+
+$(BUILD_DIR)/rdma_common_qp.o: $(SRC_DIR)/rdma_common_qp.c $(SRC_DIR)/rdma_common.h
+	$(CC) $(CFLAGS) -c $(SRC_DIR)/rdma_common_qp.c -o $(BUILD_DIR)/rdma_common_qp.o
 
 # 编译服务端对象文件
 $(SERVER_OBJ): $(SERVER_SRC) $(SRC_DIR)/rdma_common.h
