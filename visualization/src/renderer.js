@@ -111,7 +111,7 @@ class Renderer {
             const y = 80 + row * cellHeight + cellHeight / 2;
 
             // 绘制节点
-            this.drawStepNode(x, y, 60, step, i === currentIndex, i < currentIndex);
+            this.drawStepNode(x, y, 40, step, i === currentIndex, i < currentIndex);
 
             // 绘制连接线
             if (i < steps.length - 1) {
@@ -163,7 +163,7 @@ class Renderer {
             const nodeY = y + (i % 2) * 100 - 50;
             const nodeX = startX + 50 + (i * (this.canvas.width - 100) / steps.length);
 
-            this.drawStepNode(nodeX, nodeY, 50, step, i === currentIndex, i < currentIndex);
+            this.drawStepNode(nodeX, nodeY, 35, step, i === currentIndex, i < currentIndex);
         });
 
         // 步骤信息已移到侧边栏，不在Canvas上显示
@@ -190,10 +190,10 @@ class Renderer {
         // 边框
         if (isActive) {
             this.ctx.strokeStyle = this.colors.secondary;
-            this.ctx.lineWidth = 3;
+            this.ctx.lineWidth = 4;
         } else {
-            this.ctx.strokeStyle = '#ddd';
-            this.ctx.lineWidth = 2;
+            this.ctx.strokeStyle = '#666666';
+            this.ctx.lineWidth = 3;
         }
         this.ctx.stroke();
 
@@ -220,7 +220,7 @@ class Renderer {
 
         // 连线
         this.ctx.strokeStyle = color;
-        this.ctx.lineWidth = 2;
+        this.ctx.lineWidth = 4;
         this.ctx.beginPath();
         this.ctx.moveTo(fromX, fromY);
         this.ctx.lineTo(toX, toY);
