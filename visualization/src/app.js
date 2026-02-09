@@ -8,6 +8,7 @@ class RDMAVisualizationApp {
         this.renderer = new Renderer('visualization-canvas');
         this.animator = new Animator(this.renderer);
         this.currentScenarioId = 'qp-creation';
+        this.debugLogs = [];
         
         this.initializeElements();
         this.setupEventListeners();
@@ -40,13 +41,89 @@ class RDMAVisualizationApp {
         this.stepInfo = document.getElementById('step-info');
         this.codeMapping = document.getElementById('code-mapping');
         
+        // 调试面板
+        this.debugPanel = document.getElementById('debug-panel');
+        this.debugLogs = [];
+        this.setupDebugPanel();
+        
         // 调试输出
         console.log('Elements initialized:', {
             btnPlay: !!this.btnPlay,
             btnPause: !!this.btnPause,
             scenarioBtns: this.scenarioBtns.length,
-            canvas: !!this.renderer.canvas
+            canvas: !!this.renderer.canvas,
+            debugPanel: !!this.debugPanel
         });
+    }
+
+    setupDebugPanel() {
+        if (!this.debugPanel) {
+            // 如果找不到debugPanel，直接输出到浏览器console
+            console.warn('Debug panel element not found in DOM');
+            console.warn('Looking for: #debug-panel');
+            console.warn('Document ready state:', document.readyState);
+            return;
+        }
+        
+        // 初始显示
+        this.addDebugLog('Debug panel initialized');
+        
+        const maxLogs = 100;
+        const app = this; // 保存this的引用
+        
+        // 捕获 console.log
+        const originalLog = console.log;
+        console.log = function(...args) {
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+            ).join(' ');
+            app.addDebugLog(`[LOG] ${message}`);
+            originalLog.apply(console, args);
+        };
+        
+        // 捕获 console.error
+        const originalError = console.error;
+        console.error = function(...args) {
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+            ).join(' ');
+            app.addDebugLog(`[ERROR] ${message}`);
+            originalError.apply(console, args);
+        };
+        
+        // 捕获 console.warn
+        const originalWarn = console.warn;
+        console.warn = function(...args) {
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+            ).join(' ');
+            app.addDebugLog(`[WARN] ${message}`);
+            originalWarn.apply(console, args);
+        };
+    }
+
+    addDebugLog(message) {
+        const timestamp = new Date().toLocaleTimeString();
+        this.debugLogs.push(`${timestamp} ${message}`);
+        
+        // 保持最多100条日志
+        if (this.debugLogs.length > 100) {
+            this.debugLogs.shift();
+        }
+        
+        this.updateDebugPanel();
+    }
+
+    updateDebugPanel() {
+        if (this.debugPanel && this.debugLogs) {
+            this.debugPanel.textContent = this.debugLogs.join('\n');
+            // 使用 setTimeout 确保DOM更新后再滚动
+            setTimeout(() => {
+                if (this.debugPanel) {
+                    this.debugPanel.scrollTop = this.debugPanel.scrollHeight;
+                }
+            }, 0);
+        }
     }
 
     setupEventListeners() {

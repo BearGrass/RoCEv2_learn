@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>调试框测试</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        html, body {
+            height: 100%;
+            font-family: monospace;
+        }
+        
+        body {
+            background: #1a1a1a;
+            color: #e0e0e0;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: #0f0f0f;
+            margin: 10px;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+            color: #e0e0e0;
+            padding: 20px;
+            text-align: center;
+            border-bottom: 2px solid #ff8800;
+        }
+        
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            height: 100%;
+        }
+        
+        .sidebar {
+            width: 280px;
+            background: #1a1a1a;
+            border-right: 1px solid #333;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow: hidden;
+            height: 100%;
+        }
+        
+        .scenario-selector {
+            flex-shrink: 0;
+            margin: 0;
+        }
+        
+        .btn {
+            padding: 8px 12px;
+            background: #ff8800;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 6px;
+            width: 100%;
+            font-size: 12px;
+        }
+        
+        .info-panel, .code-mapping {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-left: 3px solid #ff8800;
+            padding: 12px;
+            font-size: 12px;
+            flex-shrink: 0;
+            max-height: 120px;
+            overflow-y: auto;
+            margin: 0;
+        }
+        
+        .info-panel h3, .code-mapping h3 {
+            color: #ff8800;
+            font-size: 11px;
+            margin: 0 0 8px 0;
+        }
+        
+        .debug-panel-container {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-left: 3px solid #ff8800;
+            border-radius: 4px;
+            padding: 12px;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            overflow: hidden;
+            min-height: 0;
+        }
+        
+        .debug-panel-container h3 {
+            margin: 0 0 10px 0;
+            color: #ff8800;
+            font-size: 11px;
+        }
+        
+        #debug-panel {
+            background: rgba(0, 0, 0, 0.6);
+            color: #ffaa00;
+            padding: 8px;
+            border-radius: 3px;
+            border: 1px solid #444;
+            font-size: 11px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            line-height: 1.4;
+            flex: 1;
+        }
+        
+        .main {
+            flex: 1;
+            background: #0f0f0f;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ff8800;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>调试框布局测试</h1>
+        </header>
+
+        <div class="main-content">
+            <aside class="sidebar">
+                <div class="scenario-selector">
+                    <h3>演示场景</h3>
+                    <button class="btn">QP创建流程</button>
+                    <button class="btn">数据面流程</button>
+                </div>
+
+                <div class="info-panel">
+                    <h3>当前步骤信息</h3>
+                    <div>选择场景开始</div>
+                </div>
+
+                <div class="code-mapping">
+                    <h3>代码映射</h3>
+                    <div>对应源代码位置将显示在此</div>
+                </div>
+
+                <div class="debug-panel-container">
+                    <h3>🐛 调试信息</h3>
+                    <div id="debug-panel">
+[LOG] Elements initialized
+[LOG] Renderer initialized
+[LOG] Canvas ready
+[LOG] Scenario loaded
+这是一个测试日志框，显示应用的日志输出
+                    </div>
+                </div>
+            </aside>
+
+            <main class="main">
+                <div>RDMA 可视化画布区域</div>
+            </main>
+        </div>
+    </div>
+</body>
+</html>

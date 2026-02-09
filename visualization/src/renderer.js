@@ -14,16 +14,18 @@ class Renderer {
         this.ctx = null;
         this.initialized = false;
         
-        // 配置 - Geek / Cyberpunk 风格 (蓝青色方案)
+        // 配置 - NVIDIA 深色风格（深灰色背景+橙色高亮）
         this.colors = {
-            primary: '#00d4ff',      // 明亮青色
-            secondary: '#0088ff',    // 蓝色
-            success: '#00d4ff',      // 成功用青色
-            warning: '#ffaa00',      // 警告用橙色
-            danger: '#ff3366',       // 危险用粉红
-            neutral: '#0088ff44',    // 透明蓝
-            text: '#00d4ff',         // 文字用青色
-            background: '#0a0e27',   // 稍微深一点的背景
+            primary: '#ff8800',      // 橙色
+            secondary: '#ffaa00',    // 亮橙色
+            success: '#ff8800',      // 成功用橙色
+            warning: '#ffaa00',      // 警告用亮橙色
+            danger: '#ff4444',       // 危险用红色
+            neutral: '#444444',      // 中性灰
+            text: '#e0e0e0',         // 文字用浅灰
+            textBold: '#ffffff',     // 重要文字用白色
+            background: '#0f0f0f',   // 深黑背景
+            darkBackground: '#1a1a1a', // 稍浅的背景
         };
 
         this.fonts = {
@@ -79,6 +81,29 @@ class Renderer {
         }
         this.ctx.fillStyle = this.colors.background;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // 添加网格背景以增强视觉
+        this.drawGridBackground();
+    }
+
+    drawGridBackground() {
+        const gridSize = 50;
+        this.ctx.strokeStyle = 'rgba(255, 136, 0, 0.05)';
+        this.ctx.lineWidth = 1;
+        
+        for (let x = 0; x < this.canvas.width; x += gridSize) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, 0);
+            this.ctx.lineTo(x, this.canvas.height);
+            this.ctx.stroke();
+        }
+        
+        for (let y = 0; y < this.canvas.height; y += gridSize) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(0, y);
+            this.ctx.lineTo(this.canvas.width, y);
+            this.ctx.stroke();
+        }
     }
 
     drawQPCreationFlow(scenario) {
@@ -95,81 +120,208 @@ class Renderer {
         // 绘制标题
         this.drawTitle('Queue Pair 创建流程');
 
-        // 绘制背景组件框
-        this.drawComponentBox('系统内存', 50, 100, 150, 300, '#0066aa');
-        this.drawComponentBox('内核驱动', this.canvas.width - 200, 100, 150, 300, '#0066aa');
+        // 左右两侧框的位置
+        const leftBoxX = 50;
+        const leftBoxY = 100;
+        const leftBoxWidth = 160;
+        const leftBoxHeight = 500;
+        
+        const rightBoxX = this.canvas.width - 210;
+        const rightBoxY = 100;
+        const rightBoxWidth = 160;
+        const rightBoxHeight = 500;
 
-        // 布局参数 - 中间流程
-        const cols = 2;
-        const rows = Math.ceil(totalSteps / cols);
-        const cellWidth = (this.canvas.width - 420) / cols;
-        const cellHeight = (this.canvas.height - 120) / rows;
-        const padding = 220;
+        // 绘制背景组件框
+        this.drawComponentBox('系统内存\n(HOST)', leftBoxX, leftBoxY, leftBoxWidth, leftBoxHeight, this.colors.primary);
+        this.drawComponentBox('内核驱动\n(DRV)', rightBoxX, rightBoxY, rightBoxWidth, rightBoxHeight, this.colors.primary);
+
+        // 按照与内存/驱动的关系分配步骤位置
+        let memorySteps = []; // 与内存相关的步骤索引
+        let driverSteps = []; // 与驱动相关的步骤索引
+        
+        steps.forEach((step, idx) => {
+            if (step.interaction) {
+                if (step.interaction.type === 'memory') {
+                    memorySteps.push(idx);
+                } else if (step.interaction.type === 'driver') {
+                    driverSteps.push(idx);
+                }
+            }
+        });
 
         // 绘制步骤节点
         for (let i = 0; i < steps.length; i++) {
             const step = steps[i];
-            const col = i % cols;
-            const row = Math.floor(i / cols);
-            const x = padding + col * cellWidth + cellWidth / 2;
-            const y = 100 + row * cellHeight + cellHeight / 2;
-
-            // 绘制节点
-            this.drawStepNode(x, y, 35, step, i === currentIndex, i < currentIndex);
-
-            // 绘制与组件的交互线和标签
-            if (step.interaction) {
-                if (step.interaction.type === 'memory') {
-                    // 与内存交互
-                    const memoryX = 125; // 左侧内存框中心
-                    const memoryY = 150 + (Math.floor(i/2)) * 60; // 根据行调整高度
-                    this.drawInteractionArrow(x - 30, y, memoryX, memoryY, '#0099ff', step.interaction.label);
-                    
-                    // 添加方向标签
-                    if (step.interaction.direction === 'write') {
-                        this.drawDirectionLabel(memoryX - 40, memoryY + 30, '写入', '#00d4ff');
-                    } else {
-                        this.drawDirectionLabel(memoryX - 40, memoryY + 30, '读取', '#00ff88');
-                    }
-                } else if (step.interaction.type === 'driver') {
-                    // 与驱动交互
-                    const driverX = this.canvas.width - 125; // 右侧驱动框中心
-                    const driverY = 150 + (Math.floor(i/2)) * 60; // 根据行调整高度
-                    this.drawInteractionArrow(x + 30, y, driverX, driverY, '#00ff88', step.interaction.label);
-                    
-                    // 添加方向标签
-                    if (step.interaction.direction === 'write') {
-                        this.drawDirectionLabel(driverX + 40, driverY + 30, '写入', '#00d4ff');
-                    } else {
-                        this.drawDirectionLabel(driverX + 40, driverY + 30, '读取', '#00ff88');
-                    }
-                }
+            const isActive = i === currentIndex;
+            const isCompleted = i < currentIndex;
+            
+            let x, y;
+            const hasMemoryInteraction = step.interaction && step.interaction.type === 'memory';
+            const hasDriverInteraction = step.interaction && step.interaction.type === 'driver';
+            
+            // 根据交互类型确定位置 - 节点放在对应框的旁边
+            if (hasMemoryInteraction) {
+                // 内存相关步骤放在左侧框的右边（靠近框）
+                const memIdx = memorySteps.indexOf(i);
+                const memCount = memorySteps.length;
+                y = leftBoxY + 80 + (memIdx * (leftBoxHeight - 160) / Math.max(1, memCount - 1));
+                x = leftBoxX + leftBoxWidth + 80; // 在框的右边
+            } else if (hasDriverInteraction) {
+                // 驱动相关步骤放在右侧框的左边（靠近框）
+                const drvIdx = driverSteps.indexOf(i);
+                const drvCount = driverSteps.length;
+                y = rightBoxY + 80 + (drvIdx * (rightBoxHeight - 160) / Math.max(1, drvCount - 1));
+                x = rightBoxX - 80; // 在框的左边
             }
 
-            // 绘制连接线
-            if (i < steps.length - 1) {
-                const nextCol = (i + 1) % cols;
-                const nextRow = Math.floor((i + 1) / cols);
-                const nextX = padding + nextCol * cellWidth + cellWidth / 2;
-                const nextY = 100 + nextRow * cellHeight + cellHeight / 2;
-                this.drawArrow(x, y + 40, nextX, nextY - 40, step.isCompleted ? this.colors.success : this.colors.neutral);
+            // 绘制节点
+            this.drawStepNode(x, y, 32, step, isActive, isCompleted);
+
+            // 仅在活跃步骤时绘制交互
+            if (isActive && step.interaction) {
+                if (hasMemoryInteraction) {
+                    // 绘制虚线框表示资源（在内存框内部）
+                    const resourceBoxX = leftBoxX + 15;
+                    const resourceBoxY = leftBoxY + leftBoxHeight - 80;
+                    this.drawResourceBox(resourceBoxX, resourceBoxY, leftBoxWidth - 30, 60, '资源容器', this.colors.secondary);
+                    // 绘制连接线从节点到资源框
+                    this.drawConnectorLine(x - 35, y, x - 80, resourceBoxY + 30, this.colors.secondary);
+                } else if (hasDriverInteraction) {
+                    // 绘制数据交换箭头
+                    this.drawDataExchange(x - 70, y, x - 150, y, step.interaction.direction);
+                    // 绘制连接线到驱动框
+                    this.drawConnectorLine(x - 35, y, rightBoxX, y, this.colors.secondary);
+                }
             }
         }
 
-        // 步骤信息已移到侧边栏，不在Canvas上显示
+        // 绘制流程连接线 - 按步骤顺序连接
+        for (let i = 0; i < steps.length - 1; i++) {
+            const step = steps[i];
+            const nextStep = steps[i + 1];
+            
+            let x1, y1, x2, y2;
+            
+            const hasMemoryInteraction = step.interaction && step.interaction.type === 'memory';
+            const hasDriverInteraction = step.interaction && step.interaction.type === 'driver';
+            const nextHasMemoryInteraction = nextStep.interaction && nextStep.interaction.type === 'memory';
+            const nextHasDriverInteraction = nextStep.interaction && nextStep.interaction.type === 'driver';
+            
+            // 获取当前步骤位置
+            if (hasMemoryInteraction) {
+                const memIdx = memorySteps.indexOf(i);
+                const memCount = memorySteps.length;
+                y1 = leftBoxY + 80 + (memIdx * (leftBoxHeight - 160) / Math.max(1, memCount - 1));
+                x1 = leftBoxX + leftBoxWidth + 80;
+            } else if (hasDriverInteraction) {
+                const drvIdx = driverSteps.indexOf(i);
+                const drvCount = driverSteps.length;
+                y1 = rightBoxY + 80 + (drvIdx * (rightBoxHeight - 160) / Math.max(1, drvCount - 1));
+                x1 = rightBoxX - 80;
+            }
+            
+            // 获取下一步骤位置
+            if (nextHasMemoryInteraction) {
+                const memIdx = memorySteps.indexOf(i + 1);
+                const memCount = memorySteps.length;
+                y2 = leftBoxY + 80 + (memIdx * (leftBoxHeight - 160) / Math.max(1, memCount - 1));
+                x2 = leftBoxX + leftBoxWidth + 80;
+            } else if (nextHasDriverInteraction) {
+                const drvIdx = driverSteps.indexOf(i + 1);
+                const drvCount = driverSteps.length;
+                y2 = rightBoxY + 80 + (drvIdx * (rightBoxHeight - 160) / Math.max(1, drvCount - 1));
+                x2 = rightBoxX - 80;
+            }
+            
+            this.drawArrow(x1, y1 + 38, x2, y2 - 38, step.isCompleted ? this.colors.success : this.colors.neutral);
+        }
+
         // 在底部显示流程说明
         this.drawFlowExplanation('QP创建流程：依次分配保护域、创建完成队列、注册内存、创建QP、转换QP状态（INIT→RTR→RTS）', 0.95);
     }
 
-    drawDirectionLabel(x, y, text, color) {
-        // 绘制方向标签
+    drawConnectorLine(fromX, fromY, toX, toY, color) {
+        // 绘制连接线
+        this.ctx.strokeStyle = color;
+        this.ctx.lineWidth = 1;
+        this.ctx.setLineDash([4, 2]);
+        this.ctx.beginPath();
+        this.ctx.moveTo(fromX, fromY);
+        this.ctx.lineTo(toX, toY);
+        this.ctx.stroke();
+        this.ctx.setLineDash([]);
+    }
+
+    drawResourceBox(x, y, width, height, label, color) {
+        // 绘制虚线资源容器框
+        this.ctx.strokeStyle = color;
+        this.ctx.lineWidth = 2;
+        this.ctx.setLineDash([8, 4]);
+        this.ctx.strokeRect(x, y, width, height);
+        this.ctx.setLineDash([]);
+        
+        // 标签
         this.ctx.fillStyle = color;
         this.ctx.font = 'bold 10px "Courier New", monospace';
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
-        this.ctx.shadowColor = '#000000';
+        this.ctx.fillText(label, x + width / 2, y + height / 2);
+    }
+
+    drawDataExchange(fromX, fromY, toX, toY, direction) {
+        // 绘制数据往返箭头 - 竖向布局
+        const offsetY = 12;
+        
+        // 上方箭头（请求）
+        this.ctx.strokeStyle = this.colors.secondary;
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.moveTo(fromX, fromY - offsetY);
+        this.ctx.lineTo(toX, fromY - offsetY);
+        this.ctx.stroke();
+        
+        // 右箭头头
+        this.ctx.fillStyle = this.colors.secondary;
+        this.ctx.beginPath();
+        this.ctx.moveTo(toX, fromY - offsetY);
+        this.ctx.lineTo(toX - 8, fromY - offsetY - 6);
+        this.ctx.lineTo(toX - 8, fromY - offsetY + 6);
+        this.ctx.closePath();
+        this.ctx.fill();
+        
+        // 下方箭头（响应）
+        this.ctx.strokeStyle = this.colors.secondary;
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.moveTo(toX, fromY + offsetY);
+        this.ctx.lineTo(fromX, fromY + offsetY);
+        this.ctx.stroke();
+        
+        // 左箭头头
+        this.ctx.fillStyle = this.colors.secondary;
+        this.ctx.beginPath();
+        this.ctx.moveTo(fromX, fromY + offsetY);
+        this.ctx.lineTo(fromX + 8, fromY + offsetY - 6);
+        this.ctx.lineTo(fromX + 8, fromY + offsetY + 6);
+        this.ctx.closePath();
+        this.ctx.fill();
+    }
+
+    drawDirectionLabel(x, y, text, color) {
+        // 绘制方向标签 - 改进文字清晰度
+        this.ctx.fillStyle = color;
+        this.ctx.font = 'bold 12px "Courier New", monospace';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        
+        // 添加阴影改进清晰度
+        this.ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
         this.ctx.shadowBlur = 2;
+        
         this.ctx.fillText(text, x, y);
+        
+        // 关闭阴影
+        this.ctx.shadowColor = 'transparent';
         this.ctx.shadowBlur = 0;
     }
 
@@ -192,8 +344,8 @@ class Renderer {
         const clientX = 40;
         const serverX = this.canvas.width - clientX - boxWidth;
         
-        this.drawComponentBox('CLIENT', clientX, 100, boxWidth, boxHeight, '#0044aa');
-        this.drawComponentBox('SERVER', serverX, 100, boxWidth, boxHeight, '#00aa44');
+        this.drawComponentBox('CLIENT', clientX, 100, boxWidth, boxHeight, this.colors.primary);
+        this.drawComponentBox('SERVER', serverX, 100, boxWidth, boxHeight, this.colors.primary);
 
         // 中间时间线
         const timelineY = this.canvas.height / 2;
@@ -218,15 +370,15 @@ class Renderer {
             // 步骤节点在时间线上
             this.drawStepNode(stepX, timelineY, 30, step, isActive, isCompleted);
 
-            // 根据交互信息绘制交互箭头
-            if (step.interaction) {
+            // 仅在活跃步骤时绘制交互箭头 - 优化画面清晰度
+            if (step.interaction && isActive) {
                 const role = step.interaction.role;
                 const msgType = step.interaction.type; // 'control', 'data', 'ack'
                 
-                // 根据消息类型选择颜色
-                let color = '#0088ff'; // control: 蓝色
-                if (msgType === 'data') color = '#00ff88'; // data: 绿色
-                if (msgType === 'ack') color = '#ff6644'; // ack: 橙红色
+                // 根据消息类型选择颜色 - 改进为NVIDIA风格
+                let color = this.colors.primary; // control: 橙色
+                if (msgType === 'data') color = this.colors.secondary; // data: 亮橙色
+                if (msgType === 'ack') color = this.colors.warning; // ack: 警告色
 
                 // 根据角色（client/server）和消息类型生成标签
                 let label = msgType.toUpperCase();
@@ -250,51 +402,60 @@ class Renderer {
 
     drawFlowExplanation(text, yPercent) {
         const y = this.canvas.height * yPercent;
-        const boxHeight = 35;
+        const boxHeight = 40;
         const padding = 20;
         const boxY = y - boxHeight / 2;
 
-        // 背景框
-        this.ctx.fillStyle = 'rgba(0, 50, 100, 0.8)';
+        // 背景框 - 改进颜色
+        this.ctx.fillStyle = this.colors.darkBackground;
         this.ctx.fillRect(20, boxY, this.canvas.width - 40, boxHeight);
         
         // 边框
-        this.ctx.strokeStyle = '#0088ff';
-        this.ctx.lineWidth = 1;
+        this.ctx.strokeStyle = this.colors.primary;
+        this.ctx.lineWidth = 2;
         this.ctx.strokeRect(20, boxY, this.canvas.width - 40, boxHeight);
 
-        // 文字
-        this.ctx.fillStyle = '#00d4ff';
-        this.ctx.font = '12px "Courier New", monospace';
+        // 文字 - 改进清晰度
+        this.ctx.fillStyle = this.colors.text;
+        this.ctx.font = '13px "Courier New", monospace';
         this.ctx.textAlign = 'left';
         this.ctx.textBaseline = 'middle';
+        
+        // 添加阴影改进文字清晰度
+        this.ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        this.ctx.shadowBlur = 3;
+        
         this.ctx.fillText('ℹ ' + text, padding + 20, y);
+        
+        // 关闭阴影
+        this.ctx.shadowColor = 'transparent';
+        this.ctx.shadowBlur = 0;
     }
 
     drawStepNode(x, y, radius, step, isActive, isCompleted) {
-        // 背景圆 - 添加渐变和增强发光
+        // 背景圆 - 改进颜色方案（NVIDIA风格）
         const gradient = this.ctx.createRadialGradient(x - radius/3, y - radius/3, 0, x, y, radius);
         
         if (isActive) {
-            // 活跃状态：青色渐变+强发光
-            gradient.addColorStop(0, '#00e6ff');
-            gradient.addColorStop(1, '#00a8d4');
+            // 活跃状态：橙色+强发光
+            gradient.addColorStop(0, '#ffaa00');
+            gradient.addColorStop(1, '#ff8800');
             this.ctx.fillStyle = gradient;
             this.ctx.shadowColor = this.colors.primary;
-            this.ctx.shadowBlur = 30;
+            this.ctx.shadowBlur = 25;
             this.ctx.shadowOffsetX = 0;
             this.ctx.shadowOffsetY = 0;
         } else if (isCompleted) {
-            // 完成状态：渐变绿青
-            gradient.addColorStop(0, '#00d4ff');
-            gradient.addColorStop(1, '#0088cc');
+            // 完成状态：渐变橙色
+            gradient.addColorStop(0, '#ff8800');
+            gradient.addColorStop(1, '#dd6600');
             this.ctx.fillStyle = gradient;
-            this.ctx.shadowColor = 'rgba(0, 212, 255, 0.3)';
-            this.ctx.shadowBlur = 15;
+            this.ctx.shadowColor = 'rgba(255, 136, 0, 0.4)';
+            this.ctx.shadowBlur = 12;
         } else {
-            // 未开始状态：暗蓝渐变
-            gradient.addColorStop(0, '#0055aa');
-            gradient.addColorStop(1, '#002255');
+            // 未开始状态：暗灰渐变
+            gradient.addColorStop(0, '#444444');
+            gradient.addColorStop(1, '#222222');
             this.ctx.fillStyle = gradient;
             this.ctx.shadowColor = 'transparent';
         }
@@ -305,7 +466,7 @@ class Renderer {
 
         // 内圈光晕（仅活跃节点）
         if (isActive) {
-            this.ctx.strokeStyle = 'rgba(0, 230, 255, 0.6)';
+            this.ctx.strokeStyle = 'rgba(255, 170, 0, 0.6)';
             this.ctx.lineWidth = 2;
             this.ctx.beginPath();
             this.ctx.arc(x, y, radius + 5, 0, 2 * Math.PI);
@@ -314,11 +475,11 @@ class Renderer {
 
         // 边框
         if (isActive) {
-            this.ctx.strokeStyle = '#ffffff';
+            this.ctx.strokeStyle = this.colors.textBold;
             this.ctx.lineWidth = 4;
         } else {
-            this.ctx.strokeStyle = '#0088ff';
-            this.ctx.lineWidth = 3;
+            this.ctx.strokeStyle = this.colors.primary;
+            this.ctx.lineWidth = 2;
         }
         this.ctx.stroke();
 
@@ -326,37 +487,46 @@ class Renderer {
         this.ctx.shadowColor = 'transparent';
 
         // 文字（步骤号）- 增大且改善对比
-        this.ctx.fillStyle = '#ffffff';
-        this.ctx.font = 'bold 20px "Courier New", monospace';
+        this.ctx.fillStyle = this.colors.textBold;
+        this.ctx.font = 'bold 24px "Courier New", monospace';
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
         const stepNum = step.id.split('-')[1] || '?';
         
         // 添加文字阴影以提高可读性
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
         this.ctx.fillText(stepNum, x + 1, y + 1);
-        this.ctx.fillStyle = '#ffffff';
+        this.ctx.fillStyle = this.colors.textBold;
         this.ctx.fillText(stepNum, x, y);
 
         // 步骤名称（在节点下方）
         this.ctx.fillStyle = this.colors.text;
-        this.ctx.font = this.fonts.small;
+        this.ctx.font = '12px "Courier New", monospace';
+        
+        // 添加阴影改进清晰度
+        this.ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        this.ctx.shadowBlur = 2;
+        
         this.ctx.fillText(step.name.substring(0, 12), x, y + radius + 25);
+        
+        // 关闭阴影
+        this.ctx.shadowColor = 'transparent';
+        this.ctx.shadowBlur = 0;
     }
 
     drawArrow(fromX, fromY, toX, toY, color) {
         const headlen = 15;
         const angle = Math.atan2(toY - fromY, toX - fromX);
 
-        // 连线 - 添加阴影和渐变效果
-        this.ctx.strokeStyle = color;
-        this.ctx.lineWidth = 4;
+        // 连线 - 改进样式
+        this.ctx.strokeStyle = color || this.colors.primary;
+        this.ctx.lineWidth = 3;
         this.ctx.lineCap = 'round';
         this.ctx.lineJoin = 'round';
         
         // 添加发光阴影
-        this.ctx.shadowColor = color;
-        this.ctx.shadowBlur = 10;
+        this.ctx.shadowColor = color || this.colors.primary;
+        this.ctx.shadowBlur = 8;
         
         this.ctx.beginPath();
         this.ctx.moveTo(fromX, fromY);
@@ -368,7 +538,7 @@ class Renderer {
         this.ctx.shadowBlur = 0;
 
         // 箭头头 - 增强视觉
-        this.ctx.fillStyle = color;
+        this.ctx.fillStyle = color || this.colors.primary;
         this.ctx.beginPath();
         this.ctx.moveTo(toX, toY);
         this.ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
@@ -376,22 +546,22 @@ class Renderer {
         this.ctx.closePath();
         
         // 箭头发光
-        this.ctx.shadowColor = color;
-        this.ctx.shadowBlur = 8;
+        this.ctx.shadowColor = color || this.colors.primary;
+        this.ctx.shadowBlur = 6;
         this.ctx.fill();
         this.ctx.shadowColor = 'transparent';
         this.ctx.fill();
     }
 
     drawTitle(text) {
-        // 添加发光背景和渐变效果
+        // 改进的标题样式
         this.ctx.font = this.fonts.title;
         this.ctx.textAlign = 'left';
         
-        // 背景矩形 - 带渐变
+        // 背景矩形 - 改进颜色
         const gradient = this.ctx.createLinearGradient(30, 40, 400, 40);
-        gradient.addColorStop(0, 'rgba(0, 212, 255, 0.15)');
-        gradient.addColorStop(1, 'rgba(0, 136, 255, 0.05)');
+        gradient.addColorStop(0, 'rgba(255, 136, 0, 0.12)');
+        gradient.addColorStop(1, 'rgba(255, 136, 0, 0.04)');
         this.ctx.fillStyle = gradient;
         this.ctx.fillRect(20, 35, 400, 40);
         
@@ -400,10 +570,10 @@ class Renderer {
         this.ctx.lineWidth = 2;
         this.ctx.strokeRect(20, 35, 400, 40);
         
-        // 绘制主文本
-        this.ctx.fillStyle = this.colors.text;
+        // 绘制主文本 - 改进清晰度
+        this.ctx.fillStyle = this.colors.textBold;
         this.ctx.shadowColor = this.colors.primary;
-        this.ctx.shadowBlur = 15;
+        this.ctx.shadowBlur = 10;
         this.ctx.fillText(text, 30, 60);
         this.ctx.shadowColor = 'transparent';
         
@@ -488,24 +658,35 @@ class Renderer {
 
     // 绘制组件框（系统、内存、client、server等）
     drawComponentBox(label, x, y, width, height, color) {
-        // 背景
+        // 背景 - 改进颜色
         const gradient = this.ctx.createLinearGradient(x, y, x, y + height);
-        gradient.addColorStop(0, color);
-        gradient.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
+        gradient.addColorStop(0, this.colors.darkBackground);
+        gradient.addColorStop(1, 'rgba(15, 15, 15, 0.9)');
         this.ctx.fillStyle = gradient;
         this.ctx.fillRect(x, y, width, height);
 
-        // 边框
-        this.ctx.strokeStyle = color;
+        // 边框 - 使用橙色
+        this.ctx.strokeStyle = this.colors.primary;
         this.ctx.lineWidth = 2;
         this.ctx.strokeRect(x, y, width, height);
 
-        // 标签
-        this.ctx.fillStyle = '#ffffff';
-        this.ctx.font = 'bold 14px "Courier New", monospace';
+        // 标签 - 改进文字清晰度和大小
+        this.ctx.fillStyle = this.colors.textBold;
+        this.ctx.font = 'bold 16px "Courier New", monospace';
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'top';
-        this.ctx.fillText(label, x + width / 2, y + 10);
+        
+        // 添加文字阴影以提高清晰度
+        this.ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        this.ctx.shadowBlur = 4;
+        this.ctx.shadowOffsetX = 0;
+        this.ctx.shadowOffsetY = 0;
+        
+        this.ctx.fillText(label, x + width / 2, y + 15);
+        
+        // 关闭阴影
+        this.ctx.shadowColor = 'transparent';
+        this.ctx.shadowBlur = 0;
     }
 
     // 绘制交互箭头（用于显示组件间的交互）
@@ -535,11 +716,20 @@ class Renderer {
         // 标签
         if (type) {
             this.ctx.fillStyle = color;
-            this.ctx.font = '10px "Courier New", monospace';
+            this.ctx.font = 'bold 11px "Courier New", monospace';
             this.ctx.textAlign = 'center';
             const midX = (fromX + toX) / 2;
-            const midY = (fromY + toY) / 2 - 5;
+            const midY = (fromY + toY) / 2 - 8;
+            
+            // 添加阴影改进清晰度
+            this.ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+            this.ctx.shadowBlur = 2;
+            
             this.ctx.fillText(type, midX, midY);
+            
+            // 关闭阴影
+            this.ctx.shadowColor = 'transparent';
+            this.ctx.shadowBlur = 0;
         }
     }
 
@@ -577,21 +767,30 @@ class Renderer {
             const midX = (fromX + toX) / 2;
             const midY = (fromY + toY) / 2;
             
-            // 标签背景
-            this.ctx.fillStyle = 'rgba(10, 14, 39, 0.9)';
+            // 标签背景 - 改进颜色
+            this.ctx.fillStyle = this.colors.darkBackground;
             this.ctx.strokeStyle = color;
-            this.ctx.lineWidth = 1;
-            const boxWidth = label.length * 6 + 8;
-            const boxHeight = 18;
-            this.ctx.fillRect(midX - boxWidth/2, midY - 15, boxWidth, boxHeight);
-            this.ctx.strokeRect(midX - boxWidth/2, midY - 15, boxWidth, boxHeight);
+            this.ctx.lineWidth = 2;
+            const boxWidth = label.length * 8 + 12;
+            const boxHeight = 22;
+            this.ctx.fillRect(midX - boxWidth/2, midY - 11, boxWidth, boxHeight);
+            this.ctx.strokeRect(midX - boxWidth/2, midY - 11, boxWidth, boxHeight);
             
-            // 文字
+            // 文字 - 改进清晰度
             this.ctx.fillStyle = color;
-            this.ctx.font = 'bold 12px "Courier New", monospace';
+            this.ctx.font = 'bold 13px "Courier New", monospace';
             this.ctx.textAlign = 'center';
             this.ctx.textBaseline = 'middle';
-            this.ctx.fillText(label, midX, midY - 6);
+            
+            // 添加阴影改进清晰度
+            this.ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+            this.ctx.shadowBlur = 2;
+            
+            this.ctx.fillText(label, midX, midY);
+            
+            // 关闭阴影
+            this.ctx.shadowColor = 'transparent';
+            this.ctx.shadowBlur = 0;
         }
     }
 }

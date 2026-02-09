@@ -10,8 +10,8 @@ html, body {
 }
 
 body {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: #333;
+    background: #1a1a1a;
+    color: #e0e0e0;
     line-height: 1.6;
 }
 
@@ -19,19 +19,20 @@ body {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    background: white;
+    background: #0f0f0f;
     margin: 10px;
     border-radius: 8px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     overflow: hidden;
+    border: 1px solid #333;
 }
 
 header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+    color: #e0e0e0;
     padding: 20px;
     text-align: center;
-    border-bottom: 4px solid #555;
+    border-bottom: 2px solid #ff8800;
 }
 
 header h1 {
@@ -48,47 +49,111 @@ header .subtitle {
     display: flex;
     flex: 1;
     overflow: hidden;
+    height: 100%;
 }
 
 .sidebar {
     width: 280px;
-    background: #f5f5f5;
-    border-right: 1px solid #ddd;
-    overflow-y: auto;
+    background: #1a1a1a;
+    border-right: 1px solid #333;
     padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    overflow: hidden;
+    height: 100%;
 }
 
 .sidebar h3 {
-    margin-top: 15px;
-    margin-bottom: 10px;
-    color: #667eea;
-    font-size: 14px;
+    margin: 0;
+    color: #ff8800;
+    font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
 .scenario-selector {
-    margin-bottom: 20px;
+    margin: 0;
+    flex-shrink: 0;
 }
 
 .scenario-btn {
     display: block;
     width: 100%;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 
 .info-panel, .code-mapping {
-    background: white;
-    border: 1px solid #ddd;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-left: 3px solid #ff8800;
     border-radius: 4px;
     padding: 12px;
-    margin-bottom: 15px;
-    font-size: 13px;
+    margin: 0;
+    font-size: 12px;
+    flex-shrink: 0;
+    max-height: 120px;
+    overflow-y: auto;
 }
 
 #step-info, #code-mapping {
-    color: #666;
+    color: #e0e0e0;
     line-height: 1.5;
+}
+
+.debug-panel-container {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-left: 3px solid #ff8800;
+    border-radius: 4px;
+    padding: 12px;
+    margin: 0;
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.debug-panel-container h3 {
+    margin: 0 0 10px 0;
+    color: #ff8800;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+#debug-panel {
+    background: rgba(0, 0, 0, 0.6);
+    color: #ffaa00;
+    padding: 8px;
+    border-radius: 3px;
+    border: 1px solid #444;
+    font-size: 11px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    line-height: 1.4;
+    flex: 1;
+}
+
+#debug-panel::-webkit-scrollbar {
+    width: 6px;
+}
+
+#debug-panel::-webkit-scrollbar-track {
+    background: rgba(255, 136, 0, 0.05);
+}
+
+#debug-panel::-webkit-scrollbar-thumb {
+    background: #ff880044;
+    border-radius: 3px;
+}
+
+#debug-panel::-webkit-scrollbar-thumb:hover {
+    background: #ff880066;
 }
 
 .visualizer {
@@ -100,7 +165,7 @@ header .subtitle {
 
 #canvas-container {
     flex: 1;
-    background: #fafafa;
+    background: #0a0a0a;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -111,13 +176,14 @@ header .subtitle {
 #visualization-canvas {
     max-width: 100%;
     max-height: 100%;
-    background: white;
-    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.05);
+    background: #0f0f0f;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.9);
+    border: 1px solid #2a2a2a;
 }
 
 .controls {
-    background: #f0f0f0;
-    border-top: 1px solid #ddd;
+    background: #1a1a1a;
+    border-top: 1px solid #333;
     padding: 15px;
     display: flex;
     align-items: center;
@@ -129,8 +195,8 @@ header .subtitle {
     padding: 8px 16px;
     border: none;
     border-radius: 4px;
-    background: #667eea;
-    color: white;
+    background: #ff8800;
+    color: #fff;
     cursor: pointer;
     font-size: 13px;
     font-weight: 500;
@@ -138,9 +204,9 @@ header .subtitle {
 }
 
 .btn:hover:not(:disabled) {
-    background: #5568d3;
+    background: #ff9922;
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 4px 12px rgba(255, 136, 0, 0.4);
 }
 
 .btn:active:not(:disabled) {
@@ -153,7 +219,7 @@ header .subtitle {
 }
 
 .btn.active {
-    background: #764ba2;
+    background: #ff6600;
 }
 
 .speed-control {
@@ -162,6 +228,7 @@ header .subtitle {
     gap: 8px;
     margin-left: auto;
     font-size: 13px;
+    color: #e0e0e0;
 }
 
 #speed-slider {
@@ -177,33 +244,34 @@ header .subtitle {
 
 .progress-bar {
     flex: 1;
-    height: 6px;
-    background: #ddd;
-    border-radius: 3px;
+    height: 8px;
+    background: #333;
+    border-radius: 4px;
     overflow: hidden;
+    border: 1px solid #444;
 }
 
 #progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(90deg, #ff8800 0%, #ff6600 100%);
     width: 0%;
     transition: width 0.2s ease;
 }
 
 #step-counter {
     font-size: 12px;
-    color: #666;
+    color: #999;
     min-width: 40px;
     text-align: right;
 }
 
 footer {
-    background: #333;
-    color: #999;
+    background: #1a1a1a;
+    color: #666;
     text-align: center;
     padding: 10px;
     font-size: 12px;
-    border-top: 1px solid #555;
+    border-top: 1px solid #333;
 }
 
 /* 响应式设计 */
@@ -225,7 +293,7 @@ footer {
     .sidebar {
         width: 100%;
         border-right: none;
-        border-bottom: 1px solid #ddd;
+        border-bottom: 1px solid #333;
         max-height: 200px;
     }
 
@@ -245,14 +313,14 @@ footer {
 }
 
 ::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: #1a1a1a;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #888;
+    background: #444;
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #555;
+    background: #666;
 }
