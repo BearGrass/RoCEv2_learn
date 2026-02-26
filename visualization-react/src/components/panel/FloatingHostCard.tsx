@@ -16,6 +16,7 @@ export function FloatingHostCard({ step, isPlaying, showOnHost }: FloatingHostCa
   const code = codeAction?.code || '';
   const location = codeAction?.location || '';
 
+  // 检查资源创建类型
   const createResourceAction = step.actions.find(a => a.type === 'createResource');
   const resourceType = createResourceAction?.resource;
   const isPDCreate = resourceType === 'PD';

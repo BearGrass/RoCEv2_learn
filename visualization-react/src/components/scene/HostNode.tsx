@@ -165,10 +165,10 @@ export function HostNode({ hostId, qpState, resources, isHighlighted }: HostNode
             <div className="grid grid-cols-3 gap-2">
               <AnimatePresence>
                 {hasResource('MR') && (
-                  <ResourceIcon type="MR" />
+                  <ResourceIcon key="mr" type="MR" />
                 )}
                 {hasResource('CQ') && (
-                  <ResourceIcon type="CQ" />
+                  <ResourceIcon key="cq" type="CQ" />
                 )}
               </AnimatePresence>
 
