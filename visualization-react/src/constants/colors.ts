@@ -26,11 +26,4 @@ export const COLORS = {
     card: '#FFFFFF',
     dark: '#1E293B',
   },
-
-  // 资源颜色
-  resources: {
-    PD: { bg: '#FECACA', text: '#991B1B', label: 'PD' },
-    CQ: { bg: '#BFDBFE', text: '#1E40AF', label: 'CQ' },
-    MR: { bg: '#D1FAE5', text: '#065F46', label: 'MR' },
-  },
 };
