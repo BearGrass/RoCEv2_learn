@@ -45,6 +45,7 @@ function App() {
     goToStep,
     setSpeed,
     totalSteps,
+    isTransitioning,
   } = useAnimationController(updateState, addResource, resetResources);
 
   const progress = state.currentStepIndex >= 0
@@ -83,7 +84,9 @@ function App() {
 
       <div className="flex-1 flex overflow-hidden relative">
         {/* 主场景区域 */}
-        <div className="flex-1 flex items-center justify-center gap-12 p-8 min-h-0 relative">
+        <div className={`flex-1 flex items-center justify-center gap-12 p-8 min-h-0 relative transition-opacity duration-200 ${
+          isTransitioning ? 'opacity-50' : 'opacity-100'
+        }`}>
           {/* 中间悬浮信息卡片（网络相关/双方步骤） */}
           <FloatingInfoCard step={currentStep} isPlaying={state.isPlaying} />
 

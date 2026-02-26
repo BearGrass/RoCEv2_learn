@@ -13,6 +13,7 @@ interface UseAnimationControllerReturn {
   goToStep: (index: number) => void;
   setSpeed: (speed: number) => void;
   totalSteps: number;
+  isTransitioning: boolean;
 }
 
 export function useAnimationController(
@@ -34,6 +35,7 @@ export function useAnimationController(
     dataType: null,
   });
 
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentStep = state.currentStepIndex >= 0
@@ -162,7 +164,9 @@ export function useAnimationController(
 
   const goToStep = useCallback((index: number) => {
     if (index >= 0 && index < totalSteps) {
-      // 直接跳转到指定步骤时，需要累积执行从 0 到该步骤的所有 createResource 动作
+      // 设置过渡状态
+      setIsTransitioning(true);
+
       // 重置资源状态
       resetResources();
 
@@ -177,9 +181,11 @@ export function useAnimationController(
         });
       }
 
-      // 执行目标步骤的其他动作（状态变更等）- executeStep 会调用 processStepActions
-      // 但由于 addResource 有去重检查，资源不会被重复添加
-      executeStep(index);
+      // 执行目标步骤的其他动作（状态变更等）
+      setTimeout(() => {
+        executeStep(index);
+        setIsTransitioning(false);
+      }, 200);
     }
   }, [totalSteps, executeStep, addResource, resetResources]);
 
@@ -213,5 +219,6 @@ export function useAnimationController(
     goToStep,
     setSpeed,
     totalSteps,
+    isTransitioning,
   };
 }

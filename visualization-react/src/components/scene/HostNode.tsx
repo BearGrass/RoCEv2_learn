@@ -9,6 +9,28 @@ interface HostNodeProps {
   isHighlighted?: boolean;
 }
 
+// 资源详细信息
+const resourceInfo = {
+  PD: {
+    text: 'PD',
+    sub: '保护域',
+    description: '保护域是 RDMA 资源管理的基本单位',
+    details: ['所有 MR、CQ、QP 都必须属于某个 PD', '隔离不同应用的资源访问', '提供安全保护机制']
+  },
+  CQ: {
+    text: 'CQ',
+    sub: '完成队列',
+    description: '用于接收工作请求完成通知',
+    details: ['应用通过轮询 CQ 获取操作结果', '支持中断通知机制', '可共享于多个 QP']
+  },
+  MR: {
+    text: 'MR',
+    sub: '内存区域',
+    description: '注册后的内存可被 RDMA 网卡直接访问',
+    details: ['支持远程读写操作', '需要权限控制', '零拷贝数据传输']
+  },
+};
+
 // 资源图标组件
 function ResourceIcon({ type }: { type: 'PD' | 'CQ' | 'MR' }) {
   const icons = {
@@ -31,34 +53,62 @@ function ResourceIcon({ type }: { type: 'PD' | 'CQ' | 'MR' }) {
     ),
   };
 
-  const labels = {
-    PD: { text: 'PD', sub: '保护域' },
-    CQ: { text: 'CQ', sub: '完成队列' },
-    MR: { text: 'MR', sub: '内存区域' },
-  };
+  const info = resourceInfo[type];
 
   return (
-    <motion.div
-      initial={{ scale: 0, opacity: 0, y: -10 }}
-      animate={{ scale: 1, opacity: 1, y: 0 }}
-      exit={{ scale: 0, opacity: 0, y: -10 }}
-      transition={{
-        type: 'spring',
-        stiffness: 400,
-        damping: 25
-      }}
-      className={`relative flex flex-col items-center p-2 rounded-lg ${
-        type === 'PD' ? 'bg-gradient-to-br from-blue-500 to-blue-600' :
-        type === 'CQ' ? 'bg-gradient-to-br from-purple-500 to-purple-600' :
-        'bg-gradient-to-br from-green-500 to-green-600'
-      } text-white shadow-lg`}
-    >
-      <div className="flex items-center gap-1 mb-0.5">
-        {icons[type]}
-        <span className="text-xs font-bold">{labels[type].text}</span>
+    <div className="relative group">
+      <motion.div
+        initial={{ scale: 0, opacity: 0, y: -10 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0, opacity: 0, y: -10 }}
+        transition={{
+          type: 'spring',
+          stiffness: 400,
+          damping: 25
+        }}
+        className={`relative flex flex-col items-center p-2 rounded-lg cursor-help ${
+          type === 'PD' ? 'bg-gradient-to-br from-blue-500 to-blue-600' :
+          type === 'CQ' ? 'bg-gradient-to-br from-purple-500 to-purple-600' :
+          'bg-gradient-to-br from-green-500 to-green-600'
+        } text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200`}
+      >
+        <div className="flex items-center gap-1 mb-0.5">
+          {icons[type]}
+          <span className="text-xs font-bold">{info.text}</span>
+        </div>
+        <span className="text-[9px] opacity-80">{info.sub}</span>
+      </motion.div>
+
+      {/* 悬浮提示 */}
+      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50">
+        <div className="bg-slate-900 text-white text-xs rounded-lg shadow-xl border border-slate-700 overflow-hidden w-48">
+          <div className={`px-3 py-2 text-sm font-bold ${
+            type === 'PD' ? 'bg-blue-600' :
+            type === 'CQ' ? 'bg-purple-600' :
+            'bg-green-600'
+          }`}>
+            {info.text} - {info.sub}
+          </div>
+          <div className="p-3 space-y-2">
+            <p className="text-slate-300 text-[11px] leading-relaxed">
+              {info.description}
+            </p>
+            <div className="pt-2 border-t border-slate-700">
+              {info.details.map((detail, i) => (
+                <div key={i} className="flex items-start gap-1.5 mt-1.5 text-[10px] text-slate-400">
+                  <span className="text-green-400 mt-0.5">✓</span>
+                  <span>{detail}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        {/* 箭头 */}
+        <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1">
+          <div className="w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-slate-700" />
+        </div>
       </div>
-      <span className="text-[9px] opacity-80">{labels[type].sub}</span>
-    </motion.div>
+    </div>
   );
 }
 
@@ -122,25 +172,47 @@ export function HostNode({ hostId, qpState, resources, isHighlighted }: HostNode
                 )}
               </AnimatePresence>
 
-              {/* QP 始终显示 */}
+              {/* QP 始终显示 - 带状态转换动画 */}
               <motion.div
-                className={`p-2 rounded-lg text-center border-2 ${
-                  qpState === 'RTS' ? 'border-green-400 bg-green-900/30' :
-                  qpState === 'RTR' ? 'border-blue-400 bg-blue-900/30' :
-                  qpState === 'INIT' ? 'border-yellow-400 bg-yellow-900/30' :
-                  'border-slate-500 bg-slate-700/50'
-                }`}
-                initial={{ scale: 0.9 }}
-                animate={{ scale: isHighlighted ? 1.1 : 1 }}
-                transition={{ duration: 0.3 }}
+                key={qpState}
+                className="p-2 rounded-lg text-center border-2"
+                initial={{ scale: 0.8, opacity: 0.5 }}
+                animate={{
+                  scale: isHighlighted ? 1.1 : 1,
+                  opacity: 1
+                }}
+                transition={{
+                  type: 'spring',
+                  stiffness: 300,
+                  damping: 20
+                }}
+                style={{
+                  borderColor: qpState === 'RTS' ? '#4ade80' :
+                    qpState === 'RTR' ? '#60a5fa' :
+                    qpState === 'INIT' ? '#facc15' :
+                    '#64748b',
+                  backgroundColor: qpState === 'RTS' ? 'rgba(34, 197, 94, 0.2)' :
+                    qpState === 'RTR' ? 'rgba(59, 130, 246, 0.2)' :
+                    qpState === 'INIT' ? 'rgba(234, 179, 8, 0.2)' :
+                    'rgba(100, 116, 139, 0.2)'
+                }}
               >
                 <div className="text-xs text-white font-medium mb-0.5">QP</div>
-                <div className={`text-xs font-bold ${
-                  qpState === 'RTS' ? 'text-green-400' :
-                  qpState === 'RTR' ? 'text-blue-400' :
-                  qpState === 'INIT' ? 'text-yellow-400' :
-                  'text-slate-400'
-                }`}>{qpState || '-'}</div>
+                <motion.div
+                  key={`${qpState}-text`}
+                  className={`text-xs font-bold`}
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.15 }}
+                  style={{
+                    color: qpState === 'RTS' ? '#4ade80' :
+                      qpState === 'RTR' ? '#60a5fa' :
+                      qpState === 'INIT' ? '#facc15' :
+                      '#94a3b8'
+                  }}
+                >
+                  {qpState || '-'}
+                </motion.div>
               </motion.div>
             </div>
           </div>
