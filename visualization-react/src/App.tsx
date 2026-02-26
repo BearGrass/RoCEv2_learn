@@ -7,16 +7,22 @@ import { ControlPanel } from './components/control/ControlPanel';
 import { StatePanel } from './components/panel/StatePanel';
 import { CodeDisplay } from './components/panel/CodeDisplay';
 import { FloatingInfoCard } from './components/panel/FloatingInfoCard';
-import { MREffect } from './components/effect/MREffect';
+import { FloatingHostCard } from './components/panel/FloatingHostCard';
+import { ResourceEffect } from './components/effect/ResourceEffect';
 import { useAnimationController } from './hooks/useAnimationController';
 import { useQPStateMachine } from './hooks/useQPStateMachine';
 
 function App() {
   const [hostAResources, setHostAResources] = useState<('PD' | 'CQ' | 'MR')[]>([]);
   const [hostBResources, setHostBResources] = useState<('PD' | 'CQ' | 'MR')[]>([]);
-  const [showMREffect, setShowMREffect] = useState<{ visible: boolean; host: 'A' | 'B' }>({
+  const [showResourceEffect, setShowResourceEffect] = useState<{
+    visible: boolean;
+    host: 'A' | 'B';
+    type: 'PD' | 'CQ' | 'MR';
+  }>({
     visible: false,
     host: 'A',
+    type: 'PD',
   });
 
   const { hostAState, hostBState, updateState, reset: resetQPStates } = useQPStateMachine();
@@ -26,19 +32,19 @@ function App() {
       setHostAResources(prev =>
         prev.includes(resource) ? prev : [...prev, resource]
       );
-      // MR 创建时显示特效
-      if (resource === 'MR') {
-        setShowMREffect({ visible: true, host: 'A' });
-        setTimeout(() => setShowMREffect({ visible: false, host: 'A' }), 2000);
+      // 资源创建时显示特效
+      if (resource === 'PD' || resource === 'CQ' || resource === 'MR') {
+        setShowResourceEffect({ visible: true, host, type: resource });
+        setTimeout(() => setShowResourceEffect({ visible: false, host, type: resource }), 2000);
       }
     } else {
       setHostBResources(prev =>
         prev.includes(resource) ? prev : [...prev, resource]
       );
-      // MR 创建时显示特效
-      if (resource === 'MR') {
-        setShowMREffect({ visible: true, host: 'B' });
-        setTimeout(() => setShowMREffect({ visible: false, host: 'B' }), 2000);
+      // 资源创建时显示特效
+      if (resource === 'PD' || resource === 'CQ' || resource === 'MR') {
+        setShowResourceEffect({ visible: true, host, type: resource });
+        setTimeout(() => setShowResourceEffect({ visible: false, host, type: resource }), 2000);
       }
     }
   }, []);
@@ -98,19 +104,35 @@ function App() {
       <div className="flex-1 flex overflow-hidden relative">
         {/* 主场景区域 */}
         <div className="flex-1 flex items-center justify-center gap-8 p-8 min-h-0 relative">
-          {/* 悬浮信息卡片 */}
+          {/* 中间悬浮信息卡片（网络相关/双方步骤） */}
           <FloatingInfoCard step={currentStep} isPlaying={state.isPlaying} />
 
-          {/* MR 特效层 */}
-          <MREffect isVisible={showMREffect.visible} hostId={showMREffect.host} />
-
-          <HostNode
-            hostId="A"
-            qpState={hostAState}
-            resources={hostAResources}
-            isHighlighted={state.isPlaying && currentStep?.actions.some(a => a.target === 'hostA')}
+          {/* 资源创建特效层 */}
+          <ResourceEffect
+            isVisible={showResourceEffect.visible}
+            hostId={showResourceEffect.host}
+            resourceType={showResourceEffect.type}
           />
 
+          {/* Host A 区域 */}
+          <div className="relative w-72">
+            {/* Host A 信息卡片 */}
+            <div className="absolute bottom-full left-0 right-0 mb-4 z-20">
+              <FloatingHostCard
+                step={currentStep}
+                isPlaying={state.isPlaying}
+                showOnHost="A"
+              />
+            </div>
+            <HostNode
+              hostId="A"
+              qpState={hostAState}
+              resources={hostAResources}
+              isHighlighted={state.isPlaying && currentStep?.actions.some(a => a.target === 'hostA')}
+            />
+          </div>
+
+          {/* Network Scene */}
           <div className="w-64 flex-shrink-0">
             <NetworkScene
               showConnection={state.showConnection}
@@ -120,12 +142,23 @@ function App() {
             />
           </div>
 
-          <HostNode
-            hostId="B"
-            qpState={hostBState}
-            resources={hostBResources}
-            isHighlighted={state.isPlaying && currentStep?.actions.some(a => a.target === 'hostB')}
-          />
+          {/* Host B 区域 */}
+          <div className="relative w-72">
+            {/* Host B 信息卡片 */}
+            <div className="absolute bottom-full left-0 right-0 mb-4 z-20">
+              <FloatingHostCard
+                step={currentStep}
+                isPlaying={state.isPlaying}
+                showOnHost="B"
+              />
+            </div>
+            <HostNode
+              hostId="B"
+              qpState={hostBState}
+              resources={hostBResources}
+              isHighlighted={state.isPlaying && currentStep?.actions.some(a => a.target === 'hostB')}
+            />
+          </div>
         </div>
 
         {/* 右侧信息面板 - 保留作为参考 */}

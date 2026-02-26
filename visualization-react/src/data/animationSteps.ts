@@ -7,7 +7,7 @@ export const animationSteps: AnimationStep[] = [
     phase: 1,
     title: '打开 RDMA 设备 (Host A)',
     description: '调用 ibv_open_device() 打开 RDMA 网卡设备，获取设备上下文句柄。这是所有 RDMA 操作的第一步。',
-    duration: 2000,
+    duration: 3000,
     actions: [
       { target: 'hostA', type: 'highlight', element: 'rnic' },
       {
@@ -25,7 +25,7 @@ export const animationSteps: AnimationStep[] = [
     phase: 1,
     title: '分配保护域 (PD) - Host A',
     description: '调用 ibv_alloc_pd() 分配保护域（Protection Domain）。PD 是 RDMA 资源管理的基本单位，所有 MR、CQ、QP 都必须属于某个 PD。',
-    duration: 2000,
+    duration: 3000,
     actions: [
       { target: 'hostA', type: 'createResource', resource: 'PD' },
       {
@@ -43,7 +43,7 @@ export const animationSteps: AnimationStep[] = [
     phase: 1,
     title: '创建完成队列 (CQ) - Host A',
     description: '调用 ibv_create_cq() 创建完成队列（Completion Queue）。CQ 用于接收工作请求完成通知，应用通过轮询 CQ 获取操作结果。',
-    duration: 2000,
+    duration: 3000,
     actions: [
       { target: 'hostA', type: 'createResource', resource: 'CQ' },
       {
@@ -61,7 +61,7 @@ export const animationSteps: AnimationStep[] = [
     phase: 1,
     title: '注册内存区域 (MR) - Host A',
     description: '调用 ibv_reg_mr() 注册内存区域（Memory Region）。注册后的内存可以被 RDMA 网卡直接访问，支持远程读写操作。',
-    duration: 2000,
+    duration: 3000,
     actions: [
       { target: 'hostA', type: 'createResource', resource: 'MR' },
       {
@@ -79,7 +79,7 @@ export const animationSteps: AnimationStep[] = [
     phase: 1,
     title: '打开 RDMA 设备 (Host B)',
     description: 'Host B 同样需要打开 RDMA 设备，获取设备上下文。',
-    duration: 2000,
+    duration: 3000,
     actions: [
       { target: 'hostB', type: 'highlight', element: 'rnic' },
       {
@@ -97,7 +97,7 @@ export const animationSteps: AnimationStep[] = [
     phase: 1,
     title: '分配保护域 (PD) - Host B',
     description: 'Host B 分配保护域（Protection Domain）。',
-    duration: 2000,
+    duration: 3000,
     actions: [
       { target: 'hostB', type: 'createResource', resource: 'PD' },
       {
@@ -115,7 +115,7 @@ export const animationSteps: AnimationStep[] = [
     phase: 1,
     title: '创建完成队列 (CQ) - Host B',
     description: 'Host B 创建完成队列（Completion Queue）。',
-    duration: 2000,
+    duration: 3000,
     actions: [
       { target: 'hostB', type: 'createResource', resource: 'CQ' },
       {
@@ -133,7 +133,7 @@ export const animationSteps: AnimationStep[] = [
     phase: 1,
     title: '注册内存区域 (MR) - Host B',
     description: 'Host B 注册内存区域（Memory Region）。',
-    duration: 2000,
+    duration: 3000,
     actions: [
       { target: 'hostB', type: 'createResource', resource: 'MR' },
       {
@@ -153,7 +153,7 @@ export const animationSteps: AnimationStep[] = [
     phase: 2,
     title: 'Host A 创建 QP',
     description: '调用 ibv_create_qp() 创建队列对（Queue Pair）。QP 初始状态为 RESET，需要后续状态转换才能进行通信。',
-    duration: 2000,
+    duration: 3000,
     actions: [
       { target: 'hostA', type: 'createQP' },
       { target: 'hostA', type: 'modifyQP', from: null, to: 'RESET' },
@@ -172,7 +172,7 @@ export const animationSteps: AnimationStep[] = [
     phase: 2,
     title: 'Host B 创建 QP',
     description: 'Host B 同样调用 ibv_create_qp() 创建队列对。双方都需要创建 QP 才能建立连接。',
-    duration: 2000,
+    duration: 3000,
     actions: [
       { target: 'hostB', type: 'createQP' },
       { target: 'hostB', type: 'modifyQP', from: null, to: 'RESET' },
@@ -191,7 +191,7 @@ export const animationSteps: AnimationStep[] = [
     phase: 2,
     title: 'QP 信息交换',
     description: '通过带外（Out-of-Band）通道交换 QP 信息，包括 QPN（QP Number）、GID（Global Identifier）、LID（Local Identifier）等。这是 RDMA 连接建立的必要步骤。',
-    duration: 3000,
+    duration: 4000,
     actions: [
       { target: 'network', type: 'dataExchange', fromHost: 'hostA', toHost: 'hostB', data: 'QP-INFO', label: 'QPN_A, GID_A' },
       { target: 'network', type: 'dataExchange', fromHost: 'hostB', toHost: 'hostA', data: 'QP-INFO', label: 'QPN_B, GID_B' },
@@ -213,7 +213,7 @@ export const animationSteps: AnimationStep[] = [
     phase: 3,
     title: 'Host A: RESET → INIT',
     description: '调用 ibv_modify_qp() 将 Host A 的 QP 从 RESET 状态转换到 INIT 状态。需要设置端口号和访问权限。',
-    duration: 2000,
+    duration: 3000,
     actions: [
       { target: 'hostA', type: 'modifyQP', from: 'RESET', to: 'INIT' },
       {
@@ -231,7 +231,7 @@ export const animationSteps: AnimationStep[] = [
     phase: 3,
     title: 'Host B: RESET → INIT',
     description: 'Host B 同样调用 ibv_modify_qp() 将 QP 转换到 INIT 状态。',
-    duration: 2000,
+    duration: 3000,
     actions: [
       { target: 'hostB', type: 'modifyQP', from: 'RESET', to: 'INIT' },
       {
@@ -249,7 +249,7 @@ export const animationSteps: AnimationStep[] = [
     phase: 3,
     title: 'Host A: INIT → RTR',
     description: '调用 ibv_modify_qp() 将 Host A 的 QP 从 INIT 转换到 RTR（Ready to Receive）状态。需要配置远端 QP 信息和 AH（Address Handle）属性。',
-    duration: 2500,
+    duration: 3500,
     actions: [
       { target: 'hostA', type: 'modifyQP', from: 'INIT', to: 'RTR' },
       {
@@ -267,7 +267,7 @@ export const animationSteps: AnimationStep[] = [
     phase: 3,
     title: 'Host B: INIT → RTR',
     description: 'Host B 同样调用 ibv_modify_qp() 将 QP 转换到 RTR 状态。双方都进入 RTR 后，可以接收 RDMA 数据。',
-    duration: 2500,
+    duration: 3500,
     actions: [
       { target: 'hostB', type: 'modifyQP', from: 'INIT', to: 'RTR' },
       {
@@ -285,7 +285,7 @@ export const animationSteps: AnimationStep[] = [
     phase: 3,
     title: 'Host A: RTR → RTS',
     description: '调用 ibv_modify_qp() 将 Host A 的 QP 从 RTR 转换到 RTS（Ready to Send）状态。需要设置超时时间和重试次数。',
-    duration: 2000,
+    duration: 3000,
     actions: [
       { target: 'hostA', type: 'modifyQP', from: 'RTR', to: 'RTS' },
       {
@@ -303,7 +303,7 @@ export const animationSteps: AnimationStep[] = [
     phase: 3,
     title: 'Host B: RTR → RTS',
     description: 'Host B 同样调用 ibv_modify_qp() 将 QP 转换到 RTS 状态。至此，双方 QP 都已就绪，可以进行双向 RDMA 通信。',
-    duration: 2500,
+    duration: 3500,
     actions: [
       { target: 'hostB', type: 'modifyQP', from: 'RTR', to: 'RTS' },
       {
@@ -323,7 +323,7 @@ export const animationSteps: AnimationStep[] = [
     phase: 4,
     title: '连接建立完成',
     description: '双方 QP 都处于 RTS 状态，RDMA 连接正式建立。现在可以进行 RDMA Read/Write/Send 等操作，实现零 CPU 干预的高速数据传输。',
-    duration: 4000,
+    duration: 5000,
     actions: [
       { target: 'network', type: 'showConnection', style: 'solid', color: '#10B981' },
       { target: 'network', type: 'dataExchange', fromHost: 'hostA', toHost: 'hostB', data: 'RDMA WRITE', label: 'DATA' },
