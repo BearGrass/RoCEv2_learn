@@ -1,0 +1,338 @@
+# 任务：实现 RoCEv2 QP创建流程演示动画
+
+## 项目概述
+创建一个交互式动画演示，展示RoCEv2（RDMA over Converged Ethernet v2）中队列对（QP）的创建和连接建立流程。这是一个教育性质的可视化工具，帮助用户理解RDMA通信的初始化过程。
+
+## 技术要求
+- 框架：React + TypeScript
+- 动画库：Framer Motion
+- 样式：Tailwind CSS
+- 图标：Lucide React
+- 构建工具：Vite
+
+## 项目结构
+
+src/
+├── components/
+│ ├── layout/
+│ │ └── DemoContainer.tsx # 主容器布局
+│ ├── scene/
+│ │ ├── NetworkScene.tsx # 网络场景主组件
+│ │ ├── HostNode.tsx # 主机节点（包含App层和RNIC）
+│ │ ├── RNICCard.tsx # RNIC网卡组件
+│ │ ├── QPVisual.tsx # QP可视化组件（显示状态）
+│ │ ├── ResourceBadge.tsx # 资源徽章（PD/CQ/MR）
+│ │ ├── NetworkSwitch.tsx # 网络交换机
+│ │ └── ConnectionLine.tsx # 连接线（SVG）
+│ ├── animation/
+│ │ ├── PacketAnimation.tsx # 数据包传输动画
+│ │ ├── StateTransition.tsx # 状态转换动画效果
+│ │ └── HighlightPulse.tsx # 高亮脉冲效果
+│ ├── control/
+│ │ ├── ControlPanel.tsx # 控制面板主组件
+│ │ ├── PlaybackControls.tsx # 播放控制按钮组
+│ │ ├── ProgressBar.tsx # 进度条
+│ │ ├── SpeedSelector.tsx # 速度选择器
+│ │ └── PhaseIndicator.tsx # 阶段指示器
+│ ├── panel/
+│ │ ├── StatePanel.tsx # 状态面板
+│ │ ├── QPStateDisplay.tsx # QP状态显示组件
+│ │ ├── StateDiagram.tsx # 状态转换图（小型）
+│ │ ├── StepDescription.tsx # 当前步骤描述
+│ │ ├── CodeDisplay.tsx # API代码展示
+│ │ └── ParameterList.tsx # 参数列表展示
+│ └── common/
+│ ├── Tooltip.tsx # 工具提示
+│ └── Badge.tsx # 通用徽章
+├── data/
+│ └── animationSteps.ts # 动画步骤配置数据
+├── hooks/
+│ ├── useAnimationController.ts # 动画控制器hook
+│ └── useQPStateMachine.ts # QP状态机hook
+├── types/
+│ └── index.ts # TypeScript类型定义
+├── constants/
+│ └── colors.ts # 颜色常量
+├── App.tsx
+└── main.tsx
+
+routeros
+
+## 核心类型定义 (types/index.ts)
+
+```typescript
+// QP状态
+export type QPState = 'RESET' | 'INIT' | 'RTR' | 'RTS' | null;
+
+// 主机标识
+export type HostId = 'A' | 'B';
+
+// 动画步骤动作类型
+export type ActionType = 
+  | 'highlight'           // 高亮组件
+  | 'createResource'      // 创建资源（PD/CQ/MR）
+  | 'createQP'            // 创建QP
+  | 'modifyQP'            // 修改QP状态
+  | 'showCode'            // 显示代码
+  | 'showParams'          // 显示参数
+  | 'showInfo'            // 显示信息
+  | 'showSuccess'         // 显示成功消息
+  | 'dataExchange'        // 数据交换动画
+  | 'showConnection';     // 显示连接线
+
+// 动作定义
+export interface StepAction {
+  target: 'hostA' | 'hostB' | 'network' | 'panel';
+  type: ActionType;
+  element?: string;
+  resource?: 'PD' | 'CQ' | 'MR';
+  code?: string;
+  params?: string[];
+  text?: string;
+  from?: string;
+  to?: string;
+  data?: string;
+  label?: string;
+  style?: 'solid' | 'dashed';
+  color?: string;
+}
+
+// 状态变更
+export interface StateChange {
+  host: HostId;
+  from: QPState;
+  to: QPState;
+}
+
+// 动画步骤
+export interface AnimationStep {
+  id: string;
+  phase: 1 | 2 | 3 | 4;
+  title: string;
+  description: string;
+  duration: number;          // 毫秒
+  actions: StepAction[];
+  stateChange: StateChange | null;
+}
+
+// 动画控制器状态
+export interface AnimationState {
+  currentStepIndex: number;
+  isPlaying: boolean;
+  speed: number;             // 0.5, 1, 1.5, 2
+  hostAState: QPState;
+  hostBState: QPState;
+  hostAResources: ('PD' | 'CQ' | 'MR')[];
+  hostBResources: ('PD' | 'CQ' | 'MR')[];
+  activeElements: string[];  // 当前高亮的元素ID
+  showConnection: boolean;
+  connectionStyle: 'none' | 'dashed' | 'solid';
+}
+
+动画步骤数据 (data/animationSteps.ts)
+包含以下16个步骤，分为4个阶段：
+
+阶段1：资源准备（4步）
+打开RDMA设备 - ibv_open_device()
+分配保护域(PD) - ibv_alloc_pd()
+创建完成队列(CQ) - ibv_create_cq()
+注册内存区域(MR) - ibv_reg_mr()
+阶段2：QP创建与信息交换（3步）
+Host A创建QP - ibv_create_qp() → RESET
+Host B创建QP - ibv_create_qp() → RESET
+QP信息交换 - 通过带外通道交换QPN/GID/LID
+阶段3：QP状态转换（6步）
+Host A: RESET → INIT
+Host B: RESET → INIT
+Host A: INIT → RTR
+Host B: INIT → RTR
+Host A: RTR → RTS
+Host B: RTR → RTS
+阶段4：连接完成（1步）
+连接建立成功，双端RTS
+颜色规范 (constants/colors.ts)
+typescript
+export const COLORS = {
+  // QP状态颜色
+  qpState: {
+    RESET: { bg: '#9CA3AF', text: '#1F2937', label: '重置' },
+    INIT:  { bg: '#FBBF24', text: '#1F2937', label: '初始化' },
+    RTR:   { bg: '#60A5FA', text: '#FFFFFF', label: '接收就绪' },
+    RTS:   { bg: '#34D399', text: '#1F2937', label: '发送就绪' },
+  },
+  
+  // 数据流颜色
+  dataFlow: {
+    control: '#8B5CF6',
+    qpInfo:  '#F59E0B',
+    data:    '#10B981',
+  },
+  
+  // 主机配色
+  host: {
+    A: { primary: '#3B82F6', secondary: '#DBEAFE' },
+    B: { primary: '#8B5CF6', secondary: '#EDE9FE' },
+  },
+  
+  // 背景和边框
+  background: {
+    main: '#F8FAFC',
+    card: '#FFFFFF',
+    dark: '#1E293B',
+  }
+};
+
+布局规范
+整体布局（从上到下）
+控制面板 (高度: 60px) - 固定在顶部
+
+左侧：播放控制按钮（上一步、播放/暂停、下一步、重置）
+中间：进度条 + 步骤指示 (当前步/总步数)
+右侧：速度选择器、阶段指示器
+主场景区域 (flex-1，最小高度400px)
+
+左侧：Host A 节点
+中间：网络路径（交换机 + 连接线 + 数据包动画）
+右侧：Host B 节点
+状态信息面板 (高度: 180px)
+
+左侧：QP状态显示（A和B的当前状态，带状态转换小图）
+右侧：当前步骤详情（标题、描述、代码、参数）
+Host节点内部布局
+┌─────────────────────┐
+│     Host A/B        │  <- 标题栏
+├─────────────────────┤
+│  ┌───────────────┐  │
+│  │  Application  │  │  <- 应用层
+│  └───────┬───────┘  │
+│          │          │
+│  ┌───────┴───────┐  │
+│  │     RNIC      │  │  <- RNIC卡
+│  │  ┌─────────┐  │  │
+│  │  │   QP    │  │  │  <- QP（显示状态）
+│  │  │ [状态]  │  │  │
+│  │  └─────────┘  │  │
+│  │ [PD][CQ][MR]  │  │  <- 资源徽章
+│  └───────────────┘  │
+└─────────────────────┘
+
+动画效果要求
+1. QP状态转换动画
+状态变化时：背景色渐变(duration: 500ms) + 放大脉冲效果(scale: 1 → 1.1 → 1)
+同时显示状态标签文字变化
+2. 资源创建动画
+资源徽章从无到有：fadeIn + scaleIn (duration: 400ms)
+创建时有一个短暂的发光效果
+3. 数据包传输动画
+沿着连接线路径移动的小圆点或小方块
+包含标签文字
+从发送端移动到接收端 (duration: 由步骤定义，约1500-2000ms)
+到达时有接收确认效果
+4. 连接线动画
+初始无连接线
+QP信息交换后显示虚线连接
+双端RTS后变为实线连接，颜色变为绿色
+使用SVG stroke-dasharray + stroke-dashoffset实现虚线流动效果
+5. 高亮效果
+当前操作的组件添加发光边框 (box-shadow pulse)
+其他组件轻微降低opacity
+6. 代码展示动画
+打字机效果逐字符显示代码
+语法高亮（关键字、函数名、参数）
+交互功能要求
+播放控制
+播放/暂停：切换自动播放状态
+下一步：手动进入下一步（暂停自动播放）
+上一步：回到上一步（需要重置对应状态）
+重置：回到第一步，清空所有状态
+进度控制
+点击进度条可跳转到任意步骤
+跳转时需要正确计算该步骤应有的状态
+速度控制
+支持 0.5x, 1x, 1.5x, 2x 四档速度
+影响自动播放间隔和动画duration
+步骤信息
+鼠标悬停在任何组件上显示tooltip说明
+当前步骤的详细描述始终可见
+响应式要求
+最小支持宽度：768px
+主场景区域在窄屏时适当缩放
+控制面板在窄屏时调整布局
+实施步骤建议
+Step 1: 基础架构
+初始化Vite + React + TypeScript项目
+配置Tailwind CSS
+安装framer-motion和lucide-react
+创建类型定义文件
+创建颜色常量文件
+创建动画步骤数据文件
+Step 2: 静态组件
+实现DemoContainer布局组件
+实现HostNode组件（静态）
+实现RNICCard组件（静态）
+实现QPVisual组件（支持不同状态颜色）
+实现ResourceBadge组件
+实现NetworkSwitch组件
+实现ConnectionLine组件（SVG）
+Step 3: 控制系统
+实现useAnimationController hook
+实现useQPStateMachine hook
+实现ControlPanel组件
+实现PlaybackControls组件
+实现ProgressBar组件
+实现SpeedSelector组件
+实现PhaseIndicator组件
+Step 4: 动画效果
+实现StateTransition动画组件
+实现PacketAnimation组件
+实现HighlightPulse效果
+实现连接线动画
+实现代码打字机效果
+Step 5: 信息面板
+实现StatePanel组件
+实现QPStateDisplay组件
+实现StateDiagram小组件
+实现StepDescription组件
+实现CodeDisplay组件
+实现ParameterList组件
+Step 6: 整合与优化
+整合所有组件到App.tsx
+实现步骤状态同步逻辑
+实现前进/后退状态计算
+添加过渡动画
+性能优化（React.memo等）
+测试所有步骤流程
+验收标准
+所有16个步骤可以正常播放
+前进/后退/跳转功能正常
+QP状态正确跟踪和显示
+资源创建正确累积显示
+数据包动画流畅
+连接线状态正确变化
+代码和参数正确展示
+速度调节有效
+无控制台错误
+响应式布局正常
+注意事项
+后退步骤时需要正确回滚状态
+跳转步骤时需要计算累积状态
+动画不要过于复杂影响性能
+保持代码模块化和可维护性
+添加适当的注释说明RDMA概念
+请按照以上规范逐步实现这个RoCEv2 QP创建流程演示动画。完成后应该是一个完整可运行的React应用，能够清晰展示RDMA QP建立连接的整个过程。
+
+yaml
+
+---
+
+## 使用说明
+
+将以上提示词完整复制给Claude Code，它会：
+
+1. 创建完整的项目结构
+2. 逐个实现所有组件
+3. 配置动画步骤数据
+4. 实现控制逻辑
+5. 整合成可运行的应用
+
+如果项目较大，可以分阶段提交，按照"实施步骤建议"中的Step 1-6逐步完成。
