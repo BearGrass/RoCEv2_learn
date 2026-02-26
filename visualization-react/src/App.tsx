@@ -6,6 +6,7 @@ import { StateDiagram } from './components/scene/StateDiagram';
 import { ControlPanel } from './components/control/ControlPanel';
 import { StatePanel } from './components/panel/StatePanel';
 import { CodeDisplay } from './components/panel/CodeDisplay';
+import { FloatingInfoCard } from './components/panel/FloatingInfoCard';
 import { useAnimationController } from './hooks/useAnimationController';
 import { useQPStateMachine } from './hooks/useQPStateMachine';
 
@@ -79,9 +80,12 @@ function App() {
         canGoNext={state.currentStepIndex < totalSteps - 1 || state.isPlaying}
       />
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
         {/* 主场景区域 */}
         <div className="flex-1 flex items-center justify-center gap-8 p-8 min-h-0">
+          {/* 悬浮信息卡片 */}
+          <FloatingInfoCard step={currentStep} isPlaying={state.isPlaying} />
+
           <HostNode
             hostId="A"
             qpState={hostAState}
@@ -106,7 +110,7 @@ function App() {
           />
         </div>
 
-        {/* 右侧信息面板 */}
+        {/* 右侧信息面板 - 保留作为参考 */}
         <div className="w-[400px] border-l border-slate-200 p-6 overflow-y-auto bg-slate-50">
           <div className="space-y-4">
             <StateDiagram currentState={hostAState} hostLabel="A" />
