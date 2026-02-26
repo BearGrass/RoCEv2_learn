@@ -7,12 +7,17 @@ import { ControlPanel } from './components/control/ControlPanel';
 import { StatePanel } from './components/panel/StatePanel';
 import { CodeDisplay } from './components/panel/CodeDisplay';
 import { FloatingInfoCard } from './components/panel/FloatingInfoCard';
+import { MREffect } from './components/effect/MREffect';
 import { useAnimationController } from './hooks/useAnimationController';
 import { useQPStateMachine } from './hooks/useQPStateMachine';
 
 function App() {
   const [hostAResources, setHostAResources] = useState<('PD' | 'CQ' | 'MR')[]>([]);
   const [hostBResources, setHostBResources] = useState<('PD' | 'CQ' | 'MR')[]>([]);
+  const [showMREffect, setShowMREffect] = useState<{ visible: boolean; host: 'A' | 'B' }>({
+    visible: false,
+    host: 'A',
+  });
 
   const { hostAState, hostBState, updateState, reset: resetQPStates } = useQPStateMachine();
 
@@ -21,12 +26,22 @@ function App() {
       setHostAResources(prev =>
         prev.includes(resource) ? prev : [...prev, resource]
       );
+      // MR 创建时显示特效
+      if (resource === 'MR') {
+        setShowMREffect({ visible: true, host: 'A' });
+        setTimeout(() => setShowMREffect({ visible: false, host: 'A' }), 2000);
+      }
     } else {
       setHostBResources(prev =>
         prev.includes(resource) ? prev : [...prev, resource]
       );
+      // MR 创建时显示特效
+      if (resource === 'MR') {
+        setShowMREffect({ visible: true, host: 'B' });
+        setTimeout(() => setShowMREffect({ visible: false, host: 'B' }), 2000);
+      }
     }
-  }, [setHostAResources, setHostBResources]);
+  }, []);
 
   const resetResources = useCallback(() => {
     setHostAResources([]);
@@ -82,9 +97,12 @@ function App() {
 
       <div className="flex-1 flex overflow-hidden relative">
         {/* 主场景区域 */}
-        <div className="flex-1 flex items-center justify-center gap-8 p-8 min-h-0">
+        <div className="flex-1 flex items-center justify-center gap-8 p-8 min-h-0 relative">
           {/* 悬浮信息卡片 */}
           <FloatingInfoCard step={currentStep} isPlaying={state.isPlaying} />
+
+          {/* MR 特效层 */}
+          <MREffect isVisible={showMREffect.visible} hostId={showMREffect.host} />
 
           <HostNode
             hostId="A"
